@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KNOWL — Relational Camera Experiment</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:#111214;
+    --text:#e7e8ea;
+    --muted:#8d9197;
+    --faint:#5d6269;
+    --line:#2a2d31;
+    --soft:#181a1d;
+    --inspect:#f3f4f5;
+    --accent:#aeb8c4;
+    --lane-w:356px;
+    --pitch:46px;
+    --camera-ms:360ms;
+  }
+  * { box-sizing:border-box; }
+  html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); color:var(--text); }
+  body { font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; }
+  button,input { font:inherit; }
+  button { -webkit-tap-highlight-color:transparent; }
+
+  #app { position:relative; width:100%; height:100%; overflow:hidden; }
+  .topline {
+    position:fixed; top:19px; left:22px; right:22px; z-index:30;
+    display:flex; align-items:center; justify-content:space-between; pointer-events:none;
+  }
+  .mark { color:#777c83; font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
+  .dev-toggle {
+    pointer-events:auto; border:0; background:transparent; color:#73787f; padding:7px 9px;
+    border-radius:7px; cursor:pointer; font-size:11px; letter-spacing:.08em;
+  }
+  .dev-toggle:hover,.dev-toggle[aria-expanded="true"] { color:#d6d8dc; background:#1a1c1f; }
+
+  #workspace { position:absolute; inset:0; overflow:hidden; }
+  #camera { position:absolute; inset:0; }
+  .lane {
+    position:absolute; top:clamp(150px,23vh,230px); left:0; width:var(--lane-w);
+    transform:translate3d(var(--lane-x),0,0); transition:transform var(--camera-ms) cubic-bezier(.22,.72,.24,1),opacity 180ms ease;
+    will-change:transform; opacity:1;
+  }
+  .lane.is-hidden { opacity:0; pointer-events:none; }
+  .lane.is-context { opacity:.76; }
+  .lane.is-related { opacity:.86; }
+  .lane.is-active { opacity:1; }
+  .lane-head {
+    height:25px; color:#676c73; font-size:11px; line-height:18px; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; transition:color 140ms ease;
+  }
+  .lane.is-active .lane-head { color:#858a91; }
+  .lane-window {
+    position:relative; height:calc(var(--visible) * var(--pitch)); overflow:hidden;
+    contain:layout paint; isolation:isolate;
+  }
+  .lane-window::before,.lane-window::after {
+    content:""; position:absolute; z-index:8; left:0; right:0; height:13px; pointer-events:none;
+  }
+  .lane-window::before { top:0; background:linear-gradient(to bottom,var(--bg),transparent); }
+  .lane-window::after { bottom:0; background:linear-gradient(to top,var(--bg),transparent); }
+  .rows { position:absolute; inset:0; transform:translate3d(0,var(--flow-y,0px),0); will-change:transform; }
+  .item {
+    position:absolute; left:0; top:calc(var(--slot) * var(--pitch)); width:100%; height:var(--pitch);
+    display:flex; align-items:center; padding:0 12px 0 0; color:#dadddf; font-size:16px;
+    line-height:1.45; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    cursor:default; user-select:none; will-change:transform,opacity,background-color;
+    border-radius:6px; transition:color 90ms ease,background-color 90ms ease,transform 90ms ease;
+  }
+  .lane:not(.is-active) .item { color:#b8bbc0; }
+  .lane.is-active .item:hover { color:#eceef0; }
+  .item.is-inspected {
+    color:var(--inspect); background:linear-gradient(90deg,rgba(255,255,255,.055),rgba(255,255,255,0) 84%);
+    transform:translateX(5px);
+  }
+  .item.has-related::after {
+    content:""; width:4px; height:4px; margin-left:auto; border-radius:50%; background:#626870; opacity:.72;
+  }
+  .item.outgoing { pointer-events:none; z-index:5; }
+  .inspection {
+    position:absolute; z-index:12; left:6px; top:calc((var(--slot) + 1) * var(--pitch) - 4px);
+    display:flex; align-items:center; gap:3px; min-height:28px; padding:3px 5px;
+    background:rgba(17,18,20,.95); border-radius:7px; box-shadow:0 8px 24px rgba(0,0,0,.28);
+    animation:inspect-in 100ms ease-out both;
+  }
+  @keyframes inspect-in { from{opacity:0;transform:translateY(-2px)} to{opacity:1;transform:translateY(0)} }
+  .inspect-action {
+    appearance:none; border:0; background:transparent; color:#9da2a9; font-size:10px; letter-spacing:.035em;
+    padding:5px 6px; border-radius:5px; cursor:pointer;
+  }
+  .inspect-action:hover,.inspect-action:focus-visible { color:#eef0f2; background:#24272b; outline:0; }
+  .inspect-note { color:#6f747b; font-size:10px; margin-left:4px; padding-right:3px; white-space:nowrap; }
+
+  .hint {
+    position:fixed; left:22px; bottom:20px; z-index:20; max-width:420px; color:#696e75;
+    font-size:11px; line-height:1.6; pointer-events:none;
+  }
+  #phase-chip {
+    position:fixed; left:50%; top:24px; z-index:20; transform:translateX(-50%);
+    color:#797e85; font-size:10px; letter-spacing:.12em; opacity:0; transition:opacity 100ms ease;
+  }
+  #phase-chip.show { opacity:1; }
+  #act-feedback {
+    position:fixed; left:50%; bottom:38px; z-index:40; transform:translate(-50%,6px);
+    color:#aeb2b8; background:#1b1d20; border:1px solid #2b2e33; border-radius:7px;
+    padding:8px 11px; font-size:11px; opacity:0; pointer-events:none; transition:opacity 120ms ease,transform 120ms ease;
+  }
+  #act-feedback.show { opacity:1; transform:translate(-50%,0); }
+
+  #dev-panel {
+    position:fixed; z-index:60; top:58px; right:18px; width:282px; max-height:calc(100vh - 78px);
+    overflow:auto; padding:12px; background:rgba(20,22,24,.97); border:1px solid #2d3035;
+    border-radius:9px; box-shadow:0 18px 50px rgba(0,0,0,.38); display:none;
+  }
+  #dev-panel.open { display:block; }
+  .dev-grid { display:grid; grid-template-columns:1fr 78px; gap:8px 10px; align-items:center; }
+  .dev-grid label { color:#9499a0; font-size:10px; line-height:1.25; }
+  .dev-grid input {
+    width:78px; border:1px solid #34383d; background:#151719; color:#d8dade; border-radius:5px;
+    padding:4px 5px; font-size:10px;
+  }
+  .dev-actions { display:flex; gap:6px; margin-top:12px; }
+  .dev-btn { border:1px solid #35383d; background:#191b1e; color:#aeb2b8; padding:6px 9px; border-radius:6px; font-size:10px; cursor:pointer; }
+  .dev-btn:hover,.dev-btn.active { color:#eff0f2; border-color:#555a61; }
+  #debug {
+    display:none; margin-top:11px; padding-top:10px; border-top:1px solid #2b2e33;
+    color:#858a91; font:10px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap; overflow-wrap:anywhere;
+  }
+  #debug.open { display:block; }
+
+  @media (max-width:760px) {
+    :root { --lane-w:min(78vw,340px); }
+    .hint { max-width:72vw; }
+    #dev-panel { width:min(282px,calc(100vw - 28px)); }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    *,*::before,*::after { animation-duration:.001ms!important; transition-duration:.001ms!important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topline">
+    <div class="mark">KNOWL / relational camera</div>
+    <button id="dev-toggle" class="dev-toggle" type="button" aria-expanded="false">DEV</button>
+  </div>
+  <div id="workspace"><div id="camera"></div></div>
+  <div id="phase-chip"></div>
+  <div class="hint">Y moves sibling exposure. Brief rest inspects. X reveals and hands off authored relations. Return through the left context.</div>
+  <div id="act-feedback"></div>
+  <aside id="dev-panel" aria-label="Developer tuning panel">
+    <div id="dev-grid" class="dev-grid"></div>
+    <div class="dev-actions">
+      <button id="reset" class="dev-btn" type="button">Reset</button>
+      <button id="debug-toggle" class="dev-btn" type="button">Debug</button>
+    </div>
+    <div id="debug"></div>
+  </aside>
+</div>
+<script>
+(() => {
+  'use strict';
+
+  const $ = (s,r=document) => r.querySelector(s);
+  const $$ = (s,r=document) => Array.from(r.querySelectorAll(s));
+  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+  const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+
+  // Authored, immutable relations. Camera activity never writes into this graph.
+  const AUTHORED = Object.freeze([
+    {id:'root',text:'Tests',parentId:null},
+    ...Array.from({length:10},(_,i)=>({id:`t${i+1}`,text:`Test ${i+1}`,parentId:'root'})),
+    {id:'t4-1',text:'Test 4.1',parentId:'t4'},
+    {id:'t4-2',text:'Test 4.2',parentId:'t4'},
+    {id:'t4-3',text:'Test 4.3',parentId:'t4'},
+    {id:'t4-4',text:'Test 4.4',parentId:'t4'},
+    {id:'t4-1-1',text:'Test 4.1.1',parentId:'t4-1'},
+    {id:'t4-1-2',text:'Test 4.1.2',parentId:'t4-1'},
+    {id:'t4-1-3',text:'Test 4.1.3',parentId:'t4-1'},
+    {id:'t4-1-1-a',text:'Test 4.1.1.a',parentId:'t4-1-1'},
+    {id:'t4-1-1-b',text:'Test 4.1.1.b',parentId:'t4-1-1'},
+    {id:'t4-1-1-x',text:'Test 4.1.1.x',parentId:'t4-1-1'},
+    {id:'t4-1-1-y',text:'Test 4.1.1.y',parentId:'t4-1-1'},
+    {id:'t4-2-1',text:'Test 4.2.1',parentId:'t4-2'},
+    {id:'t7-1',text:'Test 7.1',parentId:'t7'},
+    {id:'t7-2',text:'Test 7.2',parentId:'t7'},
+    {id:'t7-3',text:'Test 7.3',parentId:'t7'}
+  ]);
+  const byId = new Map(AUTHORED.map(item=>[item.id,item]));
+  const childrenOf = parentId => AUTHORED.filter(item=>item.parentId===parentId);
+
+  const defaults = Object.freeze({
+    inspectDelay:360,
+    inspectTolerance:5,
+    verticalGain:.86,
+    exposureDuration:230,
+    leftExitDistance:155,
+    leftEntryDistance:110,
+    revealThreshold:28,
+    laneEnterThreshold:34,
+    handoffDelay:150,
+    recenterDuration:360,
+    homePosition:43,
+    depthCloseGrace:420,
+    visibleItems:6,
+    pointerDeadZone:4,
+    overscroll:.34
+  });
+  let tune = {...defaults};
+
+  const state = {
+    activeDepth:0,
+    lanes:new Map(),
+    activeLaneId:'lane-0',
+    inspectTargetId:null,
+    inspectLaneDepth:null,
+    inspectCandidateId:null,
+    revealedLaneId:null,
+    handoffTargetLaneId:null,
+    phase:'IDLE',
+    cameraState:'settled',
+    pointer:{x:0,y:0,lastX:0,lastY:0,time:performance.now(),velocity:0},
+    insideActive:false,
+    insideRevealed:false,
+    protectUntil:0,
+    protectedItemId:null,
+    inspectTimer:null,
+    handoffTimer:null,
+    closeTimer:null,
+    debug:false,
+    raf:null,
+    lastAction:null
+  };
+
+  const camera = $('#camera');
+  const phaseChip = $('#phase-chip');
+  const feedback = $('#act-feedback');
+
+  function makeLane(depth,parentId,sourceId=null) {
+    const parent = byId.get(parentId);
+    return {
+      id:`lane-${depth}-${parentId}`,
+      depth,parentId,sourceId,
+      items:childrenOf(parentId),
+      start:0,
+      accumulator:0,
+      visualOffset:0,
+      visualTarget:0,
+      lastY:null,
+      busy:false,
+      queue:[],
+      el:null,
+      windowEl:null,
+      rowsEl:null,
+      origin:parent ? parent.text : 'Authored relation'
+    };
+  }
+
+  function init() {
+    state.lanes.set(0,makeLane(0,'root'));
+    buildTuningPanel();
+    syncCamera(true);
+    bindEvents();
+    debugTick();
+    window.__relationalCamera = {
+      state,tune,AUTHORED,
+      snapshot:()=>debugSnapshot(),
+      inspect:(id)=>forceInspect(id),
+      handoff:(depth)=>beginHandoff(depth),
+      reset
+    };
+  }
+
+  function laneX(depth) {
+    const width = laneWidth();
+    const homeCenter = innerWidth * tune.homePosition / 100;
+    const gap = Math.max(310,Math.min(430,innerWidth*.31));
+    return homeCenter - width/2 + (depth-state.activeDepth)*gap;
+  }
+  function laneWidth() {
+    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--lane-w')) || 356;
+  }
+  function visibleDepths() {
+    return new Set([state.activeDepth-1,state.activeDepth,state.activeDepth+1]);
+  }
+  function roleFor(depth) {
+    if(depth===state.activeDepth) return 'active';
+    if(depth===state.activeDepth-1) return 'context';
+    if(depth===state.activeDepth+1) return 'related';
+    return 'hidden';
+  }
+
+  function syncCamera(immediate=false) {
+    const visible = visibleDepths();
+    for(const lane of state.lanes.values()) {
+      if(!lane.el) createLaneDOM(lane);
+      const role=roleFor(lane.depth);
+      lane.el.className=`lane is-${role}${visible.has(lane.depth)?'':' is-hidden'}`;
+      lane.el.dataset.role=role;
+      lane.el.style.setProperty('--lane-x',`${laneX(lane.depth)}px`);
+      lane.el.style.setProperty('--visible',String(tune.visibleItems));
+      lane.el.style.setProperty('--camera-ms',immediate?'0ms':`${tune.recenterDuration}ms`);
+      renderRows(lane);
+    }
+    state.activeLaneId=(state.lanes.get(state.activeDepth)||{}).id||null;
+    state.revealedLaneId=(state.lanes.get(state.activeDepth+1)||{}).id||null;
+    requestAnimationFrame(()=>{
+      for(const lane of state.lanes.values()) if(lane.el) lane.el.style.setProperty('--camera-ms',`${tune.recenterDuration}ms`);
+    });
+  }
+
+  function createLaneDOM(lane) {
+    const el=document.createElement('section');
+    el.className='lane';
+    el.dataset.depth=String(lane.depth);
+    el.dataset.laneId=lane.id;
+    el.innerHTML=`<div class="lane-head">${escapeHTML(lane.origin)}</div><div class="lane-window"><div class="rows"></div></div>`;
+    lane.el=el;
+    lane.windowEl=$('.lane-window',el);
+    lane.rowsEl=$('.rows',el);
+    camera.appendChild(el);
+  }
+
+  function renderRows(lane) {
+    if(!lane.rowsEl) return;
+    $$('.inspection',lane.windowEl).forEach(el=>el.remove());
+    const count=Math.min(tune.visibleItems,lane.items.length);
+    const maxStart=Math.max(0,lane.items.length-count);
+    lane.start=clamp(lane.start,0,maxStart);
+    const slice=lane.items.slice(lane.start,lane.start+count);
+    lane.rowsEl.innerHTML=slice.map((item,slot)=>itemHTML(item,slot,lane.depth)).join('');
+    lane.rowsEl.style.setProperty('--flow-y',`${lane.visualOffset.toFixed(2)}px`);
+    if(state.inspectLaneDepth===lane.depth && state.inspectTargetId) renderInspection(lane);
+  }
+
+  function itemHTML(item,slot,depth) {
+    const related=childrenOf(item.id).length>0;
+    const inspected=state.inspectLaneDepth===depth && state.inspectTargetId===item.id;
+    return `<div class="item${related?' has-related':''}${inspected?' is-inspected':''}" data-item-id="${escapeHTML(item.id)}" data-depth="${depth}" data-slot="${slot}" style="--slot:${slot}"><span>${escapeHTML(item.text)}</span></div>`;
+  }
+
+  function renderInspection(lane) {
+    const row=$(`.item[data-item-id="${CSS.escape(state.inspectTargetId)}"]`,lane.rowsEl);
+    if(!row) return;
+    const item=byId.get(state.inspectTargetId);
+    const pop=document.createElement('div');
+    pop.className='inspection';
+    pop.dataset.inspectOwner=item.id;
+    pop.style.setProperty('--slot',row.dataset.slot);
+    pop.innerHTML=['WHAT?','WHY?','HOW?','TEST','+'].map(action=>`<button class="inspect-action" data-action="${action}" type="button">${action}</button>`).join('')+
+      `<span class="inspect-note">${childrenOf(item.id).length?'related material':'local action'}</span>`;
+    lane.windowEl.appendChild(pop);
+  }
+
+  function clearInspection({keepReveal=false}={}) {
+    clearTimeout(state.inspectTimer);
+    state.inspectTimer=null;
+    state.inspectCandidateId=null;
+    const depth=state.inspectLaneDepth;
+    state.inspectTargetId=null;
+    state.inspectLaneDepth=null;
+    $$('.inspection').forEach(el=>el.remove());
+    $$('.item.is-inspected').forEach(el=>el.classList.remove('is-inspected'));
+    if(!keepReveal && depth!==null) scheduleDepthClose(depth+1);
+  }
+
+  function scheduleInspect(itemId,depth) {
+    if(depth!==state.activeDepth || !itemId || state.cameraState!=='settled') return;
+    if(state.inspectCandidateId===itemId && state.inspectTimer) return;
+    clearTimeout(state.inspectTimer);
+    state.inspectCandidateId=itemId;
+    const anchor={x:state.pointer.x,y:state.pointer.y};
+    state.inspectTimer=setTimeout(()=>{
+      const moved=Math.hypot(state.pointer.x-anchor.x,state.pointer.y-anchor.y);
+      if(moved>tune.inspectTolerance || state.activeDepth!==depth || state.cameraState!=='settled') return;
+      const hit=hitInfo();
+      if(!hit || hit.depth!==depth || hit.itemId!==itemId) return;
+      inspectItem(itemId,depth);
+    },tune.inspectDelay);
+  }
+
+  function inspectItem(itemId,depth) {
+    if(depth!==state.activeDepth) return;
+    clearTimeout(state.closeTimer);
+    state.inspectTargetId=itemId;
+    state.inspectLaneDepth=depth;
+    state.inspectCandidateId=null;
+    state.inspectTimer=null;
+    renderRows(state.lanes.get(depth));
+    if(childrenOf(itemId).length) revealFrom(depth,itemId);
+    else scheduleDepthClose(depth+1);
+  }
+
+  function forceInspect(itemId) {
+    const item=byId.get(itemId);
+    if(!item) return false;
+    const lane=state.lanes.get(state.activeDepth);
+    if(!lane || item.parentId!==lane.parentId) return false;
+    inspectItem(itemId,state.activeDepth);
+    return true;
+  }
+
+  function revealFrom(sourceDepth,sourceId) {
+    const targetDepth=sourceDepth+1;
+    const children=childrenOf(sourceId);
+    if(!children.length) return;
+    clearTimeout(state.closeTimer);
+    for(const [depth,lane] of [...state.lanes]) {
+      if(depth>=targetDepth) { lane.el?.remove(); state.lanes.delete(depth); }
+    }
+    const lane=makeLane(targetDepth,sourceId,sourceId);
+    state.lanes.set(targetDepth,lane);
+    state.phase='REVEAL';
+    showPhase('REVEAL');
+    syncCamera();
+    lane.el.animate([
+      {opacity:0,transform:`translate3d(${laneX(targetDepth)+tune.revealThreshold}px,0,0)`},
+      {opacity:.86,transform:`translate3d(${laneX(targetDepth)}px,0,0)`}
+    ],{duration:180,easing:'cubic-bezier(.2,.7,.25,1)'});
+    setTimeout(()=>{ if(state.phase==='REVEAL') state.phase='IDLE'; },190);
+  }
+
+  function scheduleDepthClose(depth) {
+    clearTimeout(state.closeTimer);
+    if(depth<=state.activeDepth) return;
+    state.closeTimer=setTimeout(()=>{
+      if(state.insideRevealed || state.handoffTargetLaneId) return;
+      for(const [d,lane] of [...state.lanes]) {
+        if(d>=depth) { lane.el?.remove(); state.lanes.delete(d); }
+      }
+      state.revealedLaneId=(state.lanes.get(state.activeDepth+1)||{}).id||null;
+    },tune.depthCloseGrace);
+  }
+
+  async function beginHandoff(targetDepth) {
+    if(targetDepth<0 || !state.lanes.has(targetDepth) || Math.abs(targetDepth-state.activeDepth)!==1) return false;
+    clearTimeout(state.handoffTimer);
+    clearTimeout(state.closeTimer);
+    const oldDepth=state.activeDepth;
+    const target=state.lanes.get(targetDepth);
+    const hit=hitInfo();
+    state.phase='HANDOFF';
+    state.cameraState='handoff';
+    state.handoffTargetLaneId=target.id;
+    state.protectedItemId=(hit&&hit.depth===targetDepth&&hit.itemId)||target.items[target.start]?.id||null;
+    state.protectUntil=performance.now()+tune.recenterDuration+100;
+    showPhase('HANDOFF');
+    clearInspection({keepReveal:true});
+
+    state.activeDepth=targetDepth;
+    state.activeLaneId=target.id;
+    state.insideActive=true;
+    state.insideRevealed=false;
+    await sleep(34);
+    state.phase='RECENTER';
+    state.cameraState='recentering';
+    showPhase('RECENTER');
+    syncCamera();
+    await sleep(tune.recenterDuration+24);
+    state.phase='IDLE';
+    state.cameraState='settled';
+    state.handoffTargetLaneId=null;
+    state.protectedItemId=null;
+    const laneNow=state.lanes.get(state.activeDepth);
+    if(laneNow) {
+      laneNow.lastY=state.pointer.y;
+      const finalHit=hitInfo();
+      state.insideActive=!!(finalHit&&finalHit.depth===state.activeDepth);
+      if(finalHit&&finalHit.depth===state.activeDepth&&finalHit.itemId) scheduleInspect(finalHit.itemId,state.activeDepth);
+    }
+    // Returning leaves the former child as the right-hand authored relation.
+    if(targetDepth<oldDepth) syncCamera();
+    return true;
+  }
+
+  function considerHandoff(hit) {
+    const targetDepth=hit ? hit.depth : null;
+    const adjacent=targetDepth!==null && Math.abs(targetDepth-state.activeDepth)===1;
+    if(!adjacent || state.cameraState!=='settled') {
+      clearTimeout(state.handoffTimer);
+      state.handoffTimer=null;
+      state.handoffTargetLaneId=null;
+      if(state.phase==='ENTER') state.phase='IDLE';
+      return;
+    }
+    const lane=state.lanes.get(targetDepth);
+    if(!lane) return;
+    const rect=lane.windowEl.getBoundingClientRect();
+    const penetration=targetDepth>state.activeDepth ? state.pointer.x-rect.left : rect.right-state.pointer.x;
+    if(penetration<tune.laneEnterThreshold) return;
+    clearTimeout(state.closeTimer);
+    state.phase='ENTER';
+    state.handoffTargetLaneId=lane.id;
+    showPhase('ENTER');
+    if(state.handoffTimer) return;
+    state.handoffTimer=setTimeout(()=>{
+      const nowHit=hitInfo();
+      if(nowHit&&nowHit.depth===targetDepth) beginHandoff(targetDepth);
+      else { state.handoffTimer=null; state.handoffTargetLaneId=null; }
+    },tune.handoffDelay);
+  }
+
+  function hitInfo(x=state.pointer.x,y=state.pointer.y) {
+    const el=document.elementFromPoint(x,y);
+    const item=el&&el.closest?.('.item');
+    const inspection=el&&el.closest?.('.inspection');
+    const laneEl=el&&el.closest?.('.lane');
+    if(!laneEl) return null;
+    return {
+      laneId:laneEl.dataset.laneId,
+      depth:Number(laneEl.dataset.depth),
+      itemId:item?.dataset.itemId||null,
+      inspectionOwner:inspection?.dataset.inspectOwner||null,
+      role:laneEl.dataset.role
+    };
+  }
+
+  function onPointerMove(event) {
+    const now=performance.now();
+    const dt=Math.max(8,now-state.pointer.time);
+    const dx=event.clientX-state.pointer.x;
+    const dy=event.clientY-state.pointer.y;
+    const speed=Math.hypot(dx,dy)/dt*1000;
+    state.pointer.lastX=state.pointer.x;
+    state.pointer.lastY=state.pointer.y;
+    state.pointer.x=event.clientX;
+    state.pointer.y=event.clientY;
+    state.pointer.time=now;
+    state.pointer.velocity=state.pointer.velocity*.72+speed*.28;
+
+    const protectedMotion=now<state.protectUntil && state.cameraState!=='settled';
+    const hit=hitInfo();
+    state.insideRevealed=!!(hit&&hit.depth===state.activeDepth+1);
+    state.insideActive=protectedMotion || !!(hit&&hit.depth===state.activeDepth);
+
+    if(state.cameraState!=='settled') {
+      // Logical pointer capture: camera motion cannot revoke lane ownership.
+      const lane=state.lanes.get(state.activeDepth);
+      if(lane && Math.abs(dy)>tune.pointerDeadZone) feedVertical(lane,dy);
+      return;
+    }
+
+    considerHandoff(hit);
+    if(!hit || hit.depth!==state.activeDepth) {
+      if(state.inspectTargetId) clearInspection({keepReveal:!!(hit&&hit.depth===state.activeDepth+1)});
+      return;
+    }
+
+    const lane=state.lanes.get(state.activeDepth);
+    if(!lane) return;
+    if(hit.inspectionOwner && hit.inspectionOwner===state.inspectTargetId) return;
+    if(Math.hypot(dx,dy)>tune.inspectTolerance || state.pointer.velocity>85) {
+      if(state.inspectTargetId) clearInspection({keepReveal:false});
+      clearTimeout(state.inspectTimer);
+      state.inspectTimer=null;
+      state.inspectCandidateId=null;
+    }
+    if(Math.abs(dy)>=tune.pointerDeadZone) feedVertical(lane,dy);
+    if(hit.itemId && !lane.busy) scheduleInspect(hit.itemId,lane.depth);
+  }
+
+  function feedVertical(lane,dy) {
+    if(lane.depth!==state.activeDepth) return;
+    lane.accumulator+=dy*tune.verticalGain;
+    const pitch=rowPitch();
+    lane.visualTarget=clamp(-lane.accumulator*.22,-pitch*tune.overscroll,pitch*tune.overscroll);
+    ensureFlowAnimation();
+    while(lane.accumulator>=pitch) { lane.accumulator-=pitch; enqueueStep(lane,1); }
+    while(lane.accumulator<=-pitch) { lane.accumulator+=pitch; enqueueStep(lane,-1); }
+  }
+
+  function ensureFlowAnimation() {
+    if(state.raf) return;
+    const tick=()=>{
+      let moving=false;
+      for(const lane of state.lanes.values()) {
+        const delta=lane.visualTarget-lane.visualOffset;
+        lane.visualOffset+=delta*.21;
+        if(Math.abs(delta)>.08) moving=true;
+        if(lane.rowsEl) lane.rowsEl.style.setProperty('--flow-y',`${lane.visualOffset.toFixed(2)}px`);
+      }
+      if(moving) state.raf=requestAnimationFrame(tick);
+      else state.raf=null;
+    };
+    state.raf=requestAnimationFrame(tick);
+  }
+
+  function enqueueStep(lane,direction) {
+    lane.queue.push(direction);
+    if(!lane.busy) processStepQueue(lane);
+  }
+
+  async function processStepQueue(lane) {
+    lane.busy=true;
+    while(lane.queue.length) await animateExposureStep(lane,lane.queue.shift());
+    lane.busy=false;
+    lane.visualTarget=0;
+    lane.visualOffset=0;
+    if(lane.rowsEl) lane.rowsEl.style.setProperty('--flow-y','0px');
+    const hit=hitInfo();
+    if(hit&&hit.depth===lane.depth&&hit.itemId) scheduleInspect(hit.itemId,lane.depth);
+  }
+
+  async function animateExposureStep(lane,direction) {
+    const count=Math.min(tune.visibleItems,lane.items.length);
+    const maxStart=Math.max(0,lane.items.length-count);
+    const next=clamp(lane.start+direction,0,maxStart);
+    if(next===lane.start) {
+      lane.visualTarget=clamp(-Math.sign(direction)*rowPitch()*tune.overscroll,-16,16);
+      ensureFlowAnimation();
+      await sleep(70);
+      lane.visualTarget=0;
+      return;
+    }
+    clearInspection({keepReveal:false});
+    const oldRows=$$('.item',lane.rowsEl);
+    const outgoing=direction>0?oldRows[0]:oldRows[oldRows.length-1];
+    const ghost=outgoing?.cloneNode(true);
+    if(ghost) {
+      ghost.classList.add('outgoing');
+      ghost.style.top=outgoing.style.top;
+      lane.windowEl.appendChild(ghost);
+      ghost.animate([
+        {transform:'translate3d(0,0,0)',opacity:1},
+        {transform:`translate3d(${-tune.leftExitDistance}px,${direction>0?-10:10}px,0)`,opacity:.3}
+      ],{duration:tune.exposureDuration,easing:'cubic-bezier(.24,.7,.25,1)',fill:'forwards'});
+    }
+    lane.start=next;
+    lane.visualOffset=0;
+    lane.visualTarget=0;
+    renderRows(lane);
+    const rows=$$('.item',lane.rowsEl);
+    const pitch=rowPitch();
+    rows.forEach((row,slot)=>{
+      const isEntering=direction>0?slot===rows.length-1:slot===0;
+      const from=isEntering
+        ? `translate3d(${-tune.leftEntryDistance}px,${direction>0?8:-8}px,0)`
+        : `translate3d(0,${direction>0?pitch:-pitch}px,0)`;
+      row.animate([
+        {transform:from,opacity:isEntering ? .55 : 1},
+        {transform:'translate3d(0,0,0)',opacity:1}
+      ],{duration:tune.exposureDuration,easing:'cubic-bezier(.22,.72,.24,1)'});
+    });
+    await sleep(tune.exposureDuration);
+    ghost?.remove();
+  }
+
+  function rowPitch() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pitch'))||46; }
+
+  function bindEvents() {
+    document.addEventListener('pointermove',onPointerMove,{passive:true});
+    document.addEventListener('pointerdown',event=>{
+      const action=event.target.closest?.('.inspect-action');
+      if(action) {
+        event.preventDefault();
+        act(action.dataset.action,state.inspectTargetId);
+      }
+    });
+    document.addEventListener('pointerleave',()=>{
+      if(performance.now()<state.protectUntil) return;
+      state.insideActive=false;
+      state.insideRevealed=false;
+      clearInspection({keepReveal:false});
+    });
+    window.addEventListener('resize',()=>syncCamera(true));
+    $('#dev-toggle').addEventListener('click',()=>{
+      const open=$('#dev-panel').classList.toggle('open');
+      $('#dev-toggle').setAttribute('aria-expanded',String(open));
+    });
+    $('#reset').addEventListener('click',reset);
+    $('#debug-toggle').addEventListener('click',()=>{
+      state.debug=!state.debug;
+      $('#debug').classList.toggle('open',state.debug);
+      $('#debug-toggle').classList.toggle('active',state.debug);
+    });
+  }
+
+  function act(action,itemId) {
+    if(!itemId) return;
+    state.lastAction={action,itemId,at:performance.now()};
+    feedback.textContent=`${action} on ${byId.get(itemId)?.text||itemId} — presentation hook only`;
+    feedback.classList.add('show');
+    setTimeout(()=>feedback.classList.remove('show'),1050);
+  }
+
+  function showPhase(label) {
+    phaseChip.textContent=label;
+    phaseChip.classList.add('show');
+    setTimeout(()=>{ if(phaseChip.textContent===label) phaseChip.classList.remove('show'); },420);
+  }
+
+  function reset() {
+    clearTimeout(state.inspectTimer); clearTimeout(state.handoffTimer); clearTimeout(state.closeTimer);
+    for(const lane of state.lanes.values()) lane.el?.remove();
+    state.lanes.clear();
+    Object.assign(state,{
+      activeDepth:0,activeLaneId:'lane-0',inspectTargetId:null,inspectLaneDepth:null,
+      inspectCandidateId:null,revealedLaneId:null,handoffTargetLaneId:null,phase:'IDLE',
+      cameraState:'settled',insideActive:false,insideRevealed:false,protectUntil:0,protectedItemId:null
+    });
+    state.lanes.set(0,makeLane(0,'root'));
+    tune={...defaults};
+    buildTuningPanel();
+    syncCamera(true);
+  }
+
+  const controls=[
+    ['inspect delay','inspectDelay',80,1200,10],
+    ['inspect tolerance','inspectTolerance',1,16,1],
+    ['vertical pointer gain','verticalGain',.2,2,.02],
+    ['exposure duration','exposureDuration',60,700,10],
+    ['left exit distance','leftExitDistance',30,320,5],
+    ['left entry distance','leftEntryDistance',30,260,5],
+    ['horizontal reveal threshold','revealThreshold',0,100,2],
+    ['lane enter threshold','laneEnterThreshold',0,130,2],
+    ['handoff delay','handoffDelay',0,700,10],
+    ['recenter duration','recenterDuration',80,1000,10],
+    ['active lane home %','homePosition',30,58,.5],
+    ['depth close grace','depthCloseGrace',0,1500,10]
+  ];
+  function buildTuningPanel() {
+    const grid=$('#dev-grid');
+    grid.innerHTML=controls.map(([label,key,min,max,step])=>`<label for="t-${key}">${label}</label><input id="t-${key}" data-key="${key}" type="number" min="${min}" max="${max}" step="${step}" value="${tune[key]}">`).join('');
+    $$('input',grid).forEach(input=>input.addEventListener('change',()=>{
+      const key=input.dataset.key;
+      tune[key]=clamp(Number(input.value),Number(input.min),Number(input.max));
+      input.value=tune[key];
+      syncCamera();
+    }));
+  }
+
+  function debugSnapshot() {
+    const active=state.lanes.get(state.activeDepth);
+    return {
+      pointerX:Math.round(state.pointer.x),pointerY:Math.round(state.pointer.y),
+      pointerVelocity:Math.round(state.pointer.velocity),
+      activeLaneDepth:state.activeDepth,activeLaneId:state.activeLaneId,
+      inspectTargetId:state.inspectTargetId,revealedLaneId:state.revealedLaneId,
+      handoffTargetLaneId:state.handoffTargetLaneId,
+      phase:state.phase,camera:state.cameraState,
+      currentLaneHomeX:`${tune.homePosition}%`,
+      pointerInsideActiveLane:state.insideActive,
+      pointerInsideRevealedLane:state.insideRevealed,
+      protectedItemId:state.protectedItemId,
+      activeWindowStart:active?.start??null,
+      activeQueue:active?.queue.length??0,
+      visibleLaneDepths:[...state.lanes.keys()].filter(d=>visibleDepths().has(d)),
+      activeLaneCount:$$('.lane.is-active').length,
+      inspectionOwnerCount:$$('.inspection').length,
+      canonicalMutationCount:0,
+      traceExplorationEvents:0
+    };
+  }
+  function debugTick() {
+    if(state.debug) $('#debug').textContent=Object.entries(debugSnapshot()).map(([k,v])=>`${k}: ${Array.isArray(v)?v.join(','):v}`).join('\n');
+    requestAnimationFrame(debugTick);
+  }
+
+  function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
