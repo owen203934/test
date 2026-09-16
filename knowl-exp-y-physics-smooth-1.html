@@ -1,0 +1,2970 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KNOWL — Desktop Y Physics</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ui-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --field-font: var(--ui-font);
+      --field-bg: #171716;
+      --field-wash: radial-gradient(circle at 50% 40%, rgba(255,255,255,.025), transparent 48%);
+      --ink: #eeeae2;
+      --muted: #96928b;
+      --faint: #5f5d58;
+      --accent: #c78a61;
+      --accent-soft: rgba(199,138,97,.18);
+      --semantic: #9eb493;
+      --conflict: #c98278;
+      --material-bg: transparent;
+      --material-border: transparent;
+      --material-radius: 4px;
+      --material-shadow: none;
+      --approach-bg: rgba(255,255,255,.018);
+      --inspect-bg: rgba(255,255,255,.035);
+      --inspect-border: rgba(238,234,226,.12);
+      --operator-bg: #201f1d;
+      --operator-border: #3a3732;
+      --operator-button: transparent;
+      --thread: rgba(199,138,97,.5);
+      --thread-width: 1px;
+      --row-gap: 17px;
+      --material-size: 18px;
+      --material-leading: 1.35;
+      --material-weight: 450;
+      --material-align: center;
+      --micro-ease: cubic-bezier(.2,.65,.25,1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--field-bg);
+      color: var(--ink);
+      font-family: var(--ui-font);
+    }
+
+    button,
+    select { font: inherit; }
+
+    button:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .app {
+      width: 100%;
+      height: 100dvh;
+      min-height: 620px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      background: var(--field-bg);
+      transition: background-color 180ms ease, color 180ms ease;
+    }
+
+    .devbar {
+      position: relative;
+      z-index: 100;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 9px 16px;
+      color: #d9d9d9;
+      background: #101112;
+      border-bottom: 1px solid #2a2c2e;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .dev-title {
+      display: grid;
+      gap: 1px;
+      min-width: 152px;
+    }
+
+    .dev-title strong {
+      font-size: 11px;
+      letter-spacing: .16em;
+      font-weight: 700;
+    }
+
+    .dev-title span { color: #7f8387; font-size: 10px; }
+
+    .direction-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 8px;
+      background: #1a1c1e;
+      border: 1px solid #303337;
+    }
+
+    .direction-switch button,
+    .dev-action {
+      min-height: 30px;
+      border: 0;
+      border-radius: 5px;
+      padding: 6px 10px;
+      color: #aeb2b6;
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .direction-switch button:hover,
+    .dev-action:hover { color: #f4f4f4; background: #25282b; }
+
+    .direction-switch button[aria-pressed="true"] {
+      color: white;
+      background: #35393d;
+      box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    }
+
+    .direction-switch b { font-size: 11px; margin-right: 5px; }
+
+    .fixture-control {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #84898e;
+      white-space: nowrap;
+    }
+
+    .fixture-control select {
+      height: 32px;
+      max-width: 210px;
+      border: 1px solid #34373b;
+      border-radius: 6px;
+      padding: 0 28px 0 9px;
+      color: #d6d8da;
+      background: #191b1d;
+    }
+
+    .dev-actions { display: flex; gap: 3px; margin-left: auto; }
+
+    .stage {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      background-color: var(--field-bg);
+      background-image: var(--field-wash);
+      isolation: isolate;
+      cursor: default;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .field-note {
+      position: absolute;
+      z-index: 20;
+      top: 22px;
+      left: 26px;
+      display: grid;
+      gap: 5px;
+      pointer-events: none;
+      color: var(--muted);
+      transition: color 180ms ease;
+    }
+
+    .field-note .eyebrow {
+      font-size: 9px;
+      line-height: 1;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+
+    .field-note .fixture-name {
+      max-width: 280px;
+      font-family: var(--field-font);
+      font-size: 13px;
+      letter-spacing: .01em;
+    }
+
+    .gesture-note {
+      position: absolute;
+      z-index: 20;
+      left: 26px;
+      bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--faint);
+      font-size: 10px;
+      letter-spacing: .06em;
+      pointer-events: none;
+    }
+
+    .gesture-note i {
+      width: 26px;
+      height: 1px;
+      background: currentColor;
+      opacity: .55;
+    }
+
+    .lane-stack,
+    .relation-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .relation-layer {
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .relation-thread {
+      fill: none;
+      stroke: var(--thread);
+      stroke-width: var(--thread-width);
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+      opacity: 0;
+    }
+
+    .lane {
+      position: absolute;
+      z-index: 5;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 540px;
+      opacity: 0;
+      pointer-events: none;
+      will-change: transform, opacity, width;
+    }
+
+    .lane.active { pointer-events: auto; }
+
+    .lane.receding .material { opacity: calc(var(--material-opacity, 1) * .66) !important; }
+
+    .material-layer {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .material {
+      --material-opacity: 1;
+      position: absolute;
+      left: 50%;
+      width: min(92%, 670px);
+      min-height: 58px;
+      padding: 11px 46px 11px 46px;
+      display: grid;
+      place-content: center;
+      gap: 5px;
+      color: var(--ink);
+      background: var(--material-bg);
+      border: 1px solid var(--material-border);
+      border-radius: var(--material-radius);
+      box-shadow: var(--material-shadow);
+      font-family: var(--field-font);
+      font-size: var(--material-size);
+      font-weight: var(--material-weight);
+      line-height: var(--material-leading);
+      letter-spacing: .005em;
+      text-align: var(--material-align);
+      transform-origin: center center;
+      will-change: transform, opacity;
+      pointer-events: auto;
+      transition:
+        color 150ms ease,
+        background-color 150ms ease,
+        border-color 150ms ease,
+        box-shadow 180ms var(--micro-ease);
+    }
+
+    .material.size-medium { min-height: 78px; }
+    .material.size-long { min-height: 126px; }
+
+    .material .copy {
+      max-width: 58ch;
+      pointer-events: none;
+    }
+
+    .material-meta {
+      display: flex;
+      align-items: baseline;
+      justify-content: var(--material-meta-justify, center);
+      gap: 6px 10px;
+      max-width: 58ch;
+      min-width: 0;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-family: var(--ui-font);
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .material .kicker {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .state-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--semantic);
+      font-size: 8px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .state-mark::before {
+      content: "";
+      width: 1px;
+      height: 9px;
+      background: currentColor;
+      opacity: .85;
+    }
+
+    .state-mark[data-state="conflict"] {
+      color: var(--conflict);
+    }
+
+    .relation-cue {
+      position: absolute;
+      top: 50%;
+      right: 17px;
+      width: 9px;
+      height: 9px;
+      transform: translateY(-50%);
+      border: 1px solid var(--accent);
+      border-radius: 50%;
+      opacity: .72;
+      pointer-events: none;
+      transition: transform 160ms var(--micro-ease), opacity 150ms ease, background-color 150ms ease;
+    }
+
+    .material.approached {
+      background: var(--approach-bg);
+    }
+
+    .material.approached .relation-cue,
+    .material.candidate .relation-cue,
+    .material.inspected .relation-cue,
+    .material.relation-source .relation-cue {
+      opacity: 1;
+      transform: translateY(-50%) scale(1.18);
+    }
+
+    .material.candidate {
+      background: var(--approach-bg);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .material.inspected {
+      background: var(--inspect-bg);
+      border-color: var(--inspect-border);
+    }
+
+    .material.inspected::after,
+    .material.relation-source::after {
+      content: "";
+      position: absolute;
+      left: 22%;
+      right: 22%;
+      bottom: -1px;
+      height: 1px;
+      background: var(--accent);
+      opacity: .58;
+      pointer-events: none;
+    }
+
+    .material.relation-source::after { opacity: .32; }
+
+    .operator-island {
+      position: absolute;
+      z-index: 50;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 5px;
+      color: var(--ink);
+      background: var(--operator-bg);
+      border: 1px solid var(--operator-border);
+      border-radius: 7px;
+      box-shadow: 0 10px 28px rgba(0,0,0,.14);
+      opacity: 0;
+      transform: translate3d(-50%, 4px, 0);
+      pointer-events: none;
+      transition: opacity 110ms ease, transform 160ms var(--micro-ease);
+      white-space: nowrap;
+    }
+
+    .operator-island.visible {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0);
+      pointer-events: auto;
+    }
+
+    .operator-island button {
+      min-width: 43px;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: var(--muted);
+      background: var(--operator-button);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: .09em;
+      cursor: pointer;
+    }
+
+    .operator-island button:hover {
+      color: var(--ink);
+      border-color: var(--operator-border);
+      background: var(--accent-soft);
+    }
+
+    .operator-island .plus { min-width: 30px; font-size: 15px; font-weight: 400; }
+
+    .action-toast {
+      position: absolute;
+      z-index: 60;
+      top: 25px;
+      left: 50%;
+      max-width: min(520px, 70vw);
+      padding: 7px 12px;
+      border-radius: 99px;
+      color: var(--ink);
+      background: var(--operator-bg);
+      border: 1px solid var(--operator-border);
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-align: center;
+      opacity: 0;
+      transform: translate(-50%, -5px);
+      pointer-events: none;
+      transition: opacity 140ms ease, transform 180ms var(--micro-ease);
+    }
+
+    .action-toast.visible { opacity: .9; transform: translate(-50%, 0); }
+
+    .debug-panel {
+      position: absolute;
+      z-index: 80;
+      top: 18px;
+      right: 18px;
+      width: min(294px, calc(100vw - 36px));
+      max-height: calc(100% - 36px);
+      overflow: auto;
+      padding: 11px 12px;
+      border: 1px solid #393c40;
+      border-radius: 7px;
+      color: #c9ccce;
+      background: rgba(18,20,21,.94);
+      box-shadow: 0 14px 40px rgba(0,0,0,.28);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.45;
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition: opacity 130ms ease, transform 160ms ease;
+    }
+
+    .debug-panel.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+    .debug-panel h2 {
+      margin: 0 0 8px;
+      color: white;
+      font-size: 10px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .debug-row {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 8px;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,.035);
+    }
+
+    .debug-row span:first-child { color: #777d82; }
+    .debug-row output { overflow-wrap: anywhere; color: #dfe2e4; }
+
+    /* A — the restrained, text-first continuation of the available dark KNOWL ancestor. */
+    .direction-a {
+      color-scheme: dark;
+      --field-font: "Avenir Next", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --field-bg: #181817;
+      --field-wash:
+        linear-gradient(90deg, transparent 0 49.96%, rgba(255,255,255,.025) 50%, transparent 50.04%),
+        radial-gradient(circle at 50% 42%, rgba(255,255,255,.025), transparent 48%);
+      --ink: #eeeae2;
+      --muted: #98938b;
+      --faint: #625f59;
+      --accent: #c78a61;
+      --accent-soft: rgba(199,138,97,.13);
+      --semantic: #9db091;
+      --conflict: #cf887c;
+      --material-size: 18px;
+      --material-leading: 1.34;
+      --material-weight: 430;
+      --material-align: center;
+      --operator-bg: #211f1c;
+      --operator-border: #403b35;
+      --thread: rgba(199,138,97,.46);
+    }
+
+    /* B — stronger physical response without decorative futurism. */
+    .direction-b {
+      color-scheme: dark;
+      --field-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --field-bg: #101819;
+      --field-wash:
+        radial-gradient(ellipse at 52% 48%, rgba(143,188,177,.06), transparent 44%),
+        linear-gradient(180deg, #0e1516, #121c1d);
+      --ink: #e8efeb;
+      --muted: #8f9d98;
+      --faint: #56645f;
+      --accent: #79b6a5;
+      --accent-soft: rgba(121,182,165,.13);
+      --semantic: #b8b884;
+      --conflict: #c7897d;
+      --material-bg: transparent;
+      --material-border: transparent;
+      --material-radius: 10px;
+      --material-shadow: none;
+      --approach-bg: rgba(226,241,235,.045);
+      --inspect-bg: rgba(222,241,234,.075);
+      --inspect-border: rgba(139,196,179,.26);
+      --operator-bg: #162322;
+      --operator-border: #31504a;
+      --material-size: 17px;
+      --material-leading: 1.38;
+      --material-weight: 480;
+      --material-align: left;
+      --thread: rgba(121,182,165,.6);
+      --thread-width: 1.25px;
+      --row-gap: 15px;
+      --micro-ease: cubic-bezier(.16,.72,.28,1);
+    }
+
+    .direction-b .material { padding-left: 38px; padding-right: 50px; }
+    .direction-b .material-meta { --material-meta-justify: flex-start; }
+    .direction-b .material::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 33%;
+      bottom: 33%;
+      width: 1px;
+      background: var(--accent);
+      opacity: .11;
+      transition: opacity 150ms ease, transform 180ms var(--micro-ease);
+    }
+    .direction-b .material.approached::before,
+    .direction-b .material.inspected::before { opacity: .55; transform: scaleY(1.25); }
+    .direction-b .material.approached { box-shadow: 0 12px 28px rgba(0,0,0,.1); }
+    .direction-b .material.inspected { box-shadow: 0 17px 38px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.025); }
+    .direction-b .relation-cue {
+      width: 15px;
+      height: 7px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, transparent 0 42%, var(--accent) 43% 57%, transparent 58%);
+      box-shadow: 0 0 0 4px rgba(121,182,165,.04);
+    }
+    .direction-b .material.inspected::after,
+    .direction-b .material.relation-source::after {
+      left: auto;
+      right: -7px;
+      top: 28%;
+      bottom: 28%;
+      width: 2px;
+      height: auto;
+      border-radius: 2px;
+    }
+
+    /* C — editorial rhythm and long-form legibility, still spatial and directly handled. */
+    .direction-c {
+      color-scheme: light;
+      --field-font: Georgia, "Times New Roman", serif;
+      --field-bg: #eeeae1;
+      --field-wash:
+        linear-gradient(90deg, transparent 0 12%, rgba(55,46,37,.045) 12.05%, transparent 12.1%),
+        radial-gradient(circle at 62% 34%, rgba(255,255,255,.56), transparent 44%);
+      --ink: #28241f;
+      --muted: #746d64;
+      --faint: #aaa096;
+      --accent: #9d5747;
+      --accent-soft: rgba(157,87,71,.09);
+      --semantic: #657955;
+      --conflict: #a94c46;
+      --material-size: 19px;
+      --material-leading: 1.42;
+      --material-weight: 400;
+      --material-align: left;
+      --approach-bg: rgba(255,255,255,.25);
+      --inspect-bg: rgba(255,255,255,.42);
+      --inspect-border: rgba(75,62,51,.13);
+      --operator-bg: #f4f0e8;
+      --operator-border: #cfc5b8;
+      --thread: rgba(126,78,65,.5);
+      --row-gap: 13px;
+      --micro-ease: cubic-bezier(.24,.61,.3,1);
+    }
+
+    .direction-c .field-note .fixture-name { font-size: 14px; font-style: italic; }
+    .direction-c .material { padding-left: 50px; padding-right: 42px; }
+    .direction-c .material .copy { max-width: 54ch; }
+    .direction-c .material-meta { --material-meta-justify: flex-start; max-width: 54ch; }
+    .direction-c .material .kicker { color: var(--accent); }
+    .direction-c .relation-cue {
+      width: 11px;
+      height: 11px;
+      border: 0;
+      border-radius: 0;
+    }
+    .direction-c .relation-cue::before,
+    .direction-c .relation-cue::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      width: 11px;
+      height: 1px;
+      background: var(--accent);
+      transform: rotate(-18deg);
+      transform-origin: left center;
+    }
+    .direction-c .relation-cue::before { top: 3px; }
+    .direction-c .relation-cue::after { top: 7px; left: 2px; width: 8px; }
+    .direction-c .material.inspected::after,
+    .direction-c .material.relation-source::after { left: 9%; right: 67%; }
+    .direction-c .operator-island { box-shadow: 0 12px 30px rgba(67,54,43,.1); }
+    .direction-c .operator-island button { color: #7d7368; }
+    .direction-c .operator-island button:hover { color: #28241f; }
+    .direction-c .action-toast { box-shadow: 0 9px 28px rgba(67,54,43,.1); }
+
+    @media (max-width: 820px) {
+      .app { min-height: 560px; }
+      .devbar { gap: 8px; flex-wrap: wrap; }
+      .dev-title { display: none; }
+      .direction-switch span { display: none; }
+      .fixture-control label { display: none; }
+      .fixture-control select { max-width: 150px; }
+      .dev-actions { margin-left: 0; }
+      .field-note { top: 15px; left: 15px; }
+      .gesture-note { left: 15px; bottom: 14px; }
+      .material { padding-left: 34px; padding-right: 34px; }
+      .operator-island { transform: translate3d(-50%, 4px, 0) scale(.92); }
+      .operator-island.visible { transform: translate3d(-50%, 0, 0) scale(.92); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .material,
+      .operator-island,
+      .action-toast { transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="app direction-a">
+    <header class="devbar" aria-label="Experiment controls">
+      <div class="dev-title">
+        <strong>KNOWL</strong>
+        <span>Desktop Y physics · smooth adaptive field distance</span>
+      </div>
+
+      <div class="direction-switch" role="group" aria-label="Visual direction">
+        <button type="button" data-direction="a" aria-pressed="true"><b>A</b><span>Old KNOWL evolved</span></button>
+        <button type="button" data-direction="b" aria-pressed="false"><b>B</b><span>Spatial material</span></button>
+        <button type="button" data-direction="c" aria-pressed="false"><b>C</b><span>Editorial hybrid</span></button>
+      </div>
+
+      <label class="fixture-control">
+        <span>Fixture</span>
+        <select id="fixtureSelect" aria-label="Fixture">
+          <option value="concept">Conceptual thinking</option>
+          <option value="math">Mathematical reasoning</option>
+          <option value="dense">Dense / mixed material</option>
+        </select>
+      </label>
+
+      <div class="dev-actions">
+        <button id="resetButton" class="dev-action" type="button">Reset</button>
+        <button id="debugButton" class="dev-action" type="button" aria-pressed="false">Debug</button>
+      </div>
+    </header>
+
+    <section id="stage" class="stage" aria-label="KNOWL relational camera visual experiment">
+      <div class="field-note" aria-hidden="true">
+        <span class="eyebrow">Local working projection</span>
+        <span id="fixtureName" class="fixture-name">Representation, not ontology</span>
+      </div>
+
+      <div class="gesture-note" aria-hidden="true">
+        <span>move in Y</span><i></i><span>pause to inspect</span><i></i><span>follow relation in X</span>
+      </div>
+
+      <svg class="relation-layer" aria-hidden="true">
+        <path id="thread1" class="relation-thread"></path>
+        <path id="thread2" class="relation-thread"></path>
+      </svg>
+
+      <div id="laneStack" class="lane-stack"></div>
+      <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
+
+      <aside id="debugPanel" class="debug-panel" aria-label="Experiment state" aria-hidden="true">
+        <h2>Logical + presentation state</h2>
+        <div class="debug-row"><span>direction</span><output data-debug="direction">A</output></div>
+        <div class="debug-row"><span>fixture</span><output data-debug="fixture">concept</output></div>
+        <div class="debug-row"><span>active material</span><output data-debug="activeMaterial">—</output></div>
+        <div class="debug-row"><span>inspect owner</span><output data-debug="inspectOwner">—</output></div>
+        <div class="debug-row"><span>handoff candidate</span><output data-debug="handoffCandidate">—</output></div>
+        <div class="debug-row"><span>operator owner</span><output data-debug="operatorOwner">—</output></div>
+        <div class="debug-row"><span>relation owner</span><output data-debug="relationOwner">—</output></div>
+        <div class="debug-row"><span>relation path</span><output data-debug="relationPath">root</output></div>
+        <div class="debug-row"><span>active depth</span><output data-debug="activeDepth">0</output></div>
+        <div class="debug-row"><span>depth 0 binding</span><output data-debug="depth0">—</output></div>
+        <div class="debug-row"><span>depth 1 binding</span><output data-debug="depth1">—</output></div>
+        <div class="debug-row"><span>depth 2 binding</span><output data-debug="depth2">—</output></div>
+        <div class="debug-row"><span>camera state</span><output data-debug="camera">rest · 0.00</output></div>
+        <div class="debug-row"><span>field coordinate</span><output data-debug="fieldCoordinate">0 px</output></div>
+        <div class="debug-row"><span>semantic field coordinate</span><output data-debug="semanticFieldCoordinate">0 px</output></div>
+        <div class="debug-row"><span>visual field coordinate</span><output data-debug="visualFieldCoordinate">0 px</output></div>
+        <div class="debug-row"><span>visual lag</span><output data-debug="visualLag">0 px</output></div>
+        <div class="debug-row"><span>field velocity</span><output data-debug="fieldVelocity">0 px/s</output></div>
+        <div class="debug-row"><span>normalized Y speed</span><output data-debug="normalizedPointerSpeed">0</output></div>
+        <div class="debug-row"><span>raw normalized speed</span><output data-debug="rawNormalizedSpeed">0</output></div>
+        <div class="debug-row"><span>filtered normalized speed</span><output data-debug="filteredNormalizedSpeed">0</output></div>
+        <div class="debug-row"><span>presentation follow</span><output data-debug="presentationFollowMs">24 ms</output></div>
+        <div class="debug-row"><span>direction commitment</span><output data-debug="directionalCommitment">0</output></div>
+        <div class="debug-row"><span>adaptive gain</span><output data-debug="adaptiveGain">1</output></div>
+        <div class="debug-row"><span>range compression</span><output data-debug="rangeCompression">1</output></div>
+        <div class="debug-row"><span>pointer runway</span><output data-debug="remainingPointerRunway">0 px</output></div>
+        <div class="debug-row"><span>semantic material</span><output data-debug="currentSemanticMaterial">—</output></div>
+        <div class="debug-row"><span>boundaries / sample</span><output data-debug="crossedBoundaryCount">0</output></div>
+        <div class="debug-row"><span>coalescing</span><output data-debug="coalescingActive">false</output></div>
+        <div class="debug-row"><span>operator target</span><output data-debug="operatorTarget">—</output></div>
+        <div class="debug-row"><span>canonical mutations</span><output data-debug="canonicalMutations">0</output></div>
+        <div class="debug-row"><span>trace exploration</span><output data-debug="traceEvents">0</output></div>
+        <div class="debug-row"><span>pointer target</span><output data-debug="pointerIntent">—</output></div>
+        <div class="debug-row"><span>pointer dx / dy</span><output data-debug="pointerDelta">0 / 0</output></div>
+        <div class="debug-row"><span>pointer speed / rev</span><output data-debug="pointerMeta">0 / 0</output></div>
+        <div class="debug-row"><span>X anchor</span><output data-debug="xAnchor">—</output></div>
+        <div class="debug-row"><span>X direction / used</span><output data-debug="xDirection">idle / false</output></div>
+        <div class="debug-row"><span>X displacement</span><output data-debug="xDisplacement">0 / 0</output></div>
+        <div class="debug-row"><span>closing visuals</span><output data-debug="closingTransitions">—</output></div>
+        <div class="debug-row"><span>pointer retarget</span><output data-debug="pointerRetarget">false</output></div>
+        <div class="debug-row"><span>presentation motion</span><output data-debug="presentationMotion">false</output></div>
+        <div class="debug-row"><span>Y input scope</span><output data-debug="yInputMode">idle</output></div>
+        <div class="debug-row"><span>release started</span><output data-debug="releaseStartedAt">0</output></div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const OPERATORS = ['WHAT?', 'WHY?', 'HOW?', 'SO?', 'TEST', '+'];
+      const SETTINGS = Object.freeze({
+        dwellMs: 380,
+        velocityThreshold: 150,
+        yBaseGain: .72,
+        yMaxAdaptiveGain: 7.2,
+        yMaxRangeCompression: 1.95,
+        yMaxTotalGain: 11.2,
+        yMotionStopMs: 52,
+        yCommitmentDecayMs: 82,
+        ySpeedRiseMs: 28,
+        ySpeedFallMs: 20,
+        yGainRiseMs: 30,
+        yGainFallMs: 18,
+        yCompressionRiseMs: 28,
+        yCompressionFallMs: 18,
+        yPresentationAimMs: 24,
+        yPresentationNormalMs: 40,
+        yPresentationTravelMs: 58,
+        yMaxVisualLagRatio: .22,
+        yCoalesceBoundaryCount: 2,
+        yRunwayMargin: 26,
+        xOpenThreshold: 52,
+        xDominanceRatio: 1.18,
+        xTrackingThreshold: 8,
+        xResetDistance: 24,
+        xVerticalReanchor: 24,
+        xPauseResetMs: 280,
+        releaseDistance: 158,
+        releaseGraceMs: 230,
+        openTimeMs: 205,
+        focusTimeMs: 92,
+        cameraTimeMs: 190,
+        operatorGap: 9,
+        operatorReserve: 48,
+      });
+
+      const make = (id, label, options = {}) => ({ id, label, size: 'short', ...options });
+
+      const conceptRoots = [
+        make('c-observe', 'The field rests until attention gives it direction.'),
+        make('c-local', 'Local action, not global navigation.', { state: 'rest' }),
+        make('c-enough', 'Show enough to think.', {
+          state: 'for now',
+          related: [
+            make('c-enough-1', 'Omission can preserve attention without denying structure.'),
+            make('c-enough-2', 'The working projection stays deliberately incomplete.', { state: 'provisional' }),
+            make('c-enough-3', 'More evidence appears only when ambiguity requires it.')
+          ],
+          evidence: 'proximity'
+        }),
+        make('c-return', 'Preserve enough to return.', { state: 'validated' }),
+        make('c-model', 'A model is useful without being the world itself.', { size: 'medium' }),
+        make('c-representation', 'Representation, not ontology.', {
+          kicker: 'Working principle',
+          related: [
+            make('c-projection', 'A semantic referent may be projected as addressable material.', {
+              size: 'medium',
+              related: [
+                make('c-projection-1', 'Addressable means it can be targeted here.'),
+                make('c-projection-2', 'Material remains a presentation role.', { state: 'for now' }),
+                make('c-projection-3', 'Presentation does not become canonical meaning.', { state: 'validated' })
+              ],
+              evidence: 'explicit'
+            }),
+            make('c-ontology', 'The underlying structure may be arbitrarily complex.', { size: 'medium' }),
+            make('c-omit', 'A local view may omit structure temporarily.'),
+            make('c-false', 'It must never imply a false relationship for visual convenience.', { state: 'conflict', size: 'medium' }),
+            make('c-memory', 'Presentation memory is bounded, disposable, and non-canonical.', { size: 'medium' })
+          ],
+          evidence: 'explicit'
+        }),
+        make('c-context', 'Contextual exposure makes nearby alternatives available.', {
+          related: [
+            make('c-context-1', 'Y expresses contextual exposure in this desktop dialect.'),
+            make('c-context-2', 'Reverse movement must remain continuous and legible.'),
+            make('c-context-3', 'Density is handled through rhythm, not endless whitespace.')
+          ],
+          evidence: 'proximity'
+        }),
+        make('c-continuation', 'Relational continuation keeps the current thought in view.', {
+          related: [
+            make('c-continuation-1', 'X expresses continuation here; it does not mean child.'),
+            make('c-continuation-2', 'Origin and destination remain visible after motion settles.'),
+            make('c-continuation-3', 'Previous context remains recoverable.', { state: 'validated' })
+          ],
+          evidence: 'explicit'
+        }),
+        make('c-pause', 'Pause has weight.'),
+        make('c-intent', 'Presentation motion must never manufacture user intent.', { state: 'validated', size: 'medium' }),
+        make('c-target', 'An operation retains the identity of its target.'),
+        make('c-material', 'Material becomes actionable where it is, without a trip to global chrome.'),
+        make('c-space', 'Space can act like punctuation before it acts like a box.'),
+        make('c-evidence', 'Structure should be felt before it is drawn.'),
+        make('c-residue', 'Relational residue can recede once proximity becomes sufficient.'),
+        make('c-semantic', 'Semantic state persists while pointer attention moves elsewhere.', { state: 'for now', size: 'medium' }),
+        make('c-direct', 'Hand → material.', { kicker: 'Direct' }),
+        make('c-yielding', 'The space makes room for thought.', { kicker: 'Yielding' }),
+        make('c-elastic', 'A little give; no decorative bounce.'),
+        make('c-discovery', 'Discovery, not reward.'),
+        make('c-continuity', 'Continuity over spectacle.', { state: 'validated' }),
+        make('c-clean', 'Clean does not mean empty.'),
+        make('c-quiet', 'Quiet enough to think in.'),
+        make('c-trust', 'Precise enough to trust.')
+      ];
+
+      const mathRoots = [
+        make('m-given-angle', 'cos ∠AMC = −4/5', { kicker: 'Given' }),
+        make('m-collinear', 'A–M–B are collinear.', { state: 'validated' }),
+        make('m-supplement', '∠AMC and ∠CMB are supplementary.', {
+          related: [
+            make('m-supplement-1', 'cos(π − θ) = −cos θ'),
+            make('m-supplement-2', 'The sign changes because the angles are supplementary.'),
+            make('m-supplement-3', 'Therefore cos ∠CMB = 4/5.', { state: 'validated' })
+          ],
+          evidence: 'proximity'
+        }),
+        make('m-cos', 'Therefore cos ∠CMB = 4/5.', {
+          state: 'validated',
+          related: [
+            make('m-triangle', 'Use the 3–4–5 relation for the acute angle.'),
+            make('m-sin', 'sin ∠CMB = 3/5.', {
+              state: 'validated',
+              related: [
+                make('m-sine-law', 'Continue with the sine law using the established angle.'),
+                make('m-side-ratio', 'The next side ratio inherits the same target angle.'),
+                make('m-check', 'Check the ratio against the diagram constraints.', { state: 'for now' })
+              ],
+              evidence: 'explicit'
+            }),
+            make('m-quadrant', 'The collinearity determines the relevant sign.')
+          ],
+          evidence: 'explicit'
+        }),
+        make('m-sin-root', 'sin ∠CMB = 3/5.', { state: 'validated' }),
+        make('m-law', 'Sine-law continuation.', { related: [
+          make('m-law-1', 'Match each side to its opposite angle.'),
+          make('m-law-2', 'Carry the exact ratio before approximating.'),
+          make('m-law-3', 'Retain the named target through the continuation.', { state: 'for now' })
+        ], evidence: 'explicit' }),
+        make('m-midpoint', 'M is the midpoint of AB.', { state: 'for now' }),
+        make('m-equal', 'AM = MB follows from the midpoint relation.'),
+        make('m-area', 'Area consequence: equal bases share the same altitude.', { size: 'medium' }),
+        make('m-ratio', 'The two relevant triangular areas inherit a base ratio.'),
+        make('m-exact', 'Keep exact values until the final consequence.'),
+        make('m-diagram', 'The diagram is evidence, not a guarantee of scale.', { state: 'provisional', size: 'medium' }),
+        make('m-target', 'Current target: the area relation.', { state: 'for now' }),
+        make('m-dependency', 'Angle consequence precedes length consequence.'),
+        make('m-branch', 'An alternate construction is not represented in this fixture.', { state: 'rest', size: 'medium' }),
+        make('m-check-sign', 'Check the sign before using the trigonometric ratio.'),
+        make('m-check-midpoint', 'Check that the midpoint is actually given.'),
+        make('m-check-area', 'Check that the compared triangles share an altitude.'),
+        make('m-note', 'A compact chain should remain readable without becoming a worksheet.', { size: 'medium' }),
+        make('m-result', 'The final value is less important here than the visible reasoning rhythm.', { size: 'medium' }),
+        make('m-rest', 'The unused branches stay quiet.', { state: 'rest' })
+      ];
+
+      const denseLabels = [
+        ['d-01', 'Now'],
+        ['d-02', 'A small thought can still be independently addressable.'],
+        ['d-03', 'Working projection', { kicker: 'Term' }],
+        ['d-04', 'For now', { state: 'for now' }],
+        ['d-05', 'The visible field is not a complete inventory of everything that might be related to the current material.', { size: 'medium' }],
+        ['d-06', 'Rest', { state: 'rest' }],
+        ['d-07', 'Mixed lengths need rhythm more than they need identical containers.'],
+        ['d-08', 'This longer field note tests whether a paragraph can remain calm, readable, and directly addressable while shorter neighboring thoughts continue to move through contextual exposure around it.', { size: 'long', kicker: 'Long material', state: 'provisional' }],
+        ['d-09', 'Anchor'],
+        ['d-10', 'A relation that needs more than proximity.', { related: [
+          make('d-10-1', 'The source remains marked after the destination arrives.'),
+          make('d-10-2', 'A restrained connector carries the remaining ambiguity.', {
+            related: [
+              make('d-10-2-1', 'The second depth retains its explicit target.'),
+              make('d-10-2-2', 'Returning restores the prior local working position.'),
+              make('d-10-2-3', 'No exploration event becomes canonical.', { state: 'validated' })
+            ],
+            evidence: 'explicit'
+          }),
+          make('d-10-3', 'The mark does not encode a count or hierarchy.')
+        ], evidence: 'explicit' }],
+        ['d-11', 'A nearby continuation where proximity is sufficient.', { related: [
+          make('d-11-1', 'The related material arrives beside its source.'),
+          make('d-11-2', 'No extra line is needed once adjacency is unambiguous.'),
+          make('d-11-3', 'The source still carries the stable relation cue.')
+        ], evidence: 'proximity' }],
+        ['d-12', 'Twelve'],
+        ['d-13', 'Persistent semantic state should not imitate hover.', { state: 'validated' }],
+        ['d-14', 'A conflict remains visible even when another material is approached.', { state: 'conflict', size: 'medium' }],
+        ['d-15', 'Short.'],
+        ['d-16', 'A sentence-length thought gives the eye somewhere to land.'],
+        ['d-17', 'Operator ownership'],
+        ['d-18', 'WHAT, WHY, HOW, SO, TEST, and + remain attached to one explicit target.', { size: 'medium' }],
+        ['d-19', 'Nineteen'],
+        ['d-20', 'Twenty contextual siblings are a minimum stress case.'],
+        ['d-21', 'Density should not collapse into a conventional vertical list.'],
+        ['d-22', 'Nor should it escape into endless whitespace.'],
+        ['d-23', 'The current material stays recoverable after a relational handoff.', { state: 'for now' }],
+        ['d-24', 'A quiet line.'],
+        ['d-25', 'A second longer passage checks how the field behaves when prose, labels, persistent states, operator exposure, and authored relations all coexist without relying on a card grid to sort them out.', { size: 'long' }],
+        ['d-26', 'Sync state', { state: 'sync' }],
+        ['d-27', 'Validation state', { state: 'validated' }],
+        ['d-28', 'The field can become still again.'],
+        ['d-29', 'Twenty-nine.'],
+        ['d-30', 'A compact checkpoint after a longer run.', { state: 'for now' }],
+        ['d-31', 'Continuous distance preserves the difference between a brief thought and an extended one.'],
+        ['d-32', 'This additional long passage gives the final Y experiment enough geometric variation to reveal whether range compression still respects actual material extent while the user crosses the field at travel speed.', { size: 'long', kicker: 'Range test' }],
+        ['d-33', 'Slow down here.'],
+        ['d-34', 'Precision should return without a switch or a snapped row.'],
+        ['d-35', 'A final paragraph-length material checks that fast motion can coalesce several semantic crossings without erasing order, and that a later slow gesture can address the nearby destination directly rather than paying back an animation queue.', { size: 'long', state: 'provisional' }],
+        ['d-36', 'Stop means stop.', { state: 'validated' }]
+      ];
+      const denseRoots = denseLabels.map(([id, label, options]) => make(id, label, options || {}));
+
+      const FIXTURES = Object.freeze({
+        concept: { name: 'Representation, not ontology', startIndex: 5, roots: conceptRoots },
+        math: { name: 'A compact trigonometric reasoning chain', startIndex: 3, roots: mathRoots },
+        dense: { name: 'Dense field · mixed material', startIndex: 9, roots: denseRoots }
+      });
+
+      const app = document.getElementById('app');
+      const stage = document.getElementById('stage');
+      const laneStack = document.getElementById('laneStack');
+      const fixtureSelect = document.getElementById('fixtureSelect');
+      const fixtureName = document.getElementById('fixtureName');
+      const resetButton = document.getElementById('resetButton');
+      const debugButton = document.getElementById('debugButton');
+      const debugPanel = document.getElementById('debugPanel');
+      const actionToast = document.getElementById('actionToast');
+      const threads = [null, document.getElementById('thread1'), document.getElementById('thread2')];
+      const directionButtons = [...document.querySelectorAll('[data-direction]')];
+      const debugOutputs = Object.fromEntries([...document.querySelectorAll('[data-debug]')].map((el) => [el.dataset.debug, el]));
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const expEase = (dt, time) => 1 - Math.exp(-dt / Math.max(1, time));
+      const mix = (from, to, amount) => from + (to - from) * amount;
+      const smoothstep = (edge0, edge1, value) => {
+        if (edge0 === edge1) return value < edge0 ? 0 : 1;
+        const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+        return t * t * (3 - 2 * t);
+      };
+
+      const state = {
+        direction: 'a',
+        fixture: 'concept',
+        inspectOwner: null,
+        inspectOwnerDepth: null,
+        handoffCandidate: null,
+        handoffCandidateDepth: null,
+        handoffCandidateRevision: -1,
+        handoffStartedAt: 0,
+        operatorOwner: null,
+        operatorOwnerDepth: null,
+        pointerDrivenRetarget: false,
+        presentationMotionActive: false,
+        yInputMode: 'idle',
+        yPhysics: {
+          fieldVelocity: 0,
+          normalizedPointerSpeed: 0,
+          rawNormalizedSpeed: 0,
+          filteredNormalizedSpeed: 0,
+          visualLag: 0,
+          presentationFollowMs: SETTINGS.yPresentationAimMs,
+          directionalCommitment: 0,
+          adaptiveGain: SETTINGS.yBaseGain,
+          rangeCompression: 1,
+          remainingPointerRunway: 0,
+          laneKey: null,
+          direction: 0,
+          sameDirectionDistance: 0,
+          sameDirectionDuration: 0,
+          lastInputAt: 0,
+          lastReversalAt: 0,
+          currentSemanticMaterial: null,
+          crossedBoundaryCountThisSample: 0,
+          coalescingActive: false
+        },
+        relationOwner: null,
+        relationPath: [],
+        pathVersion: 0,
+        transitionSerial: 0,
+        closingTransitions: [],
+        operatorTarget: null,
+        activeDepth: 0,
+        camera: 0,
+        cameraTarget: 0,
+        canonicalMutationCount: 0,
+        traceExplorationEventCount: 0,
+        activeMaterial: null,
+        toastUntil: 0,
+        pointer: {
+          x: null,
+          y: null,
+          lastX: null,
+          lastY: null,
+          lastTime: 0,
+          lastMoveAt: 0,
+          dx: 0,
+          dy: 0,
+          velocity: 0,
+          inside: false,
+          revision: 0,
+          intentMaterialId: null,
+          intentDepth: null,
+          intentKind: 'idle'
+        },
+        xGesture: {
+          anchorX: null,
+          anchorY: null,
+          direction: 'idle',
+          consumed: false,
+          displacementX: 0,
+          displacementY: 0,
+          consumedAtX: null,
+          consumedAt: 0,
+          originOwnerId: null,
+          originOwnerDepth: null
+        }
+      };
+
+      function createLane(depth) {
+        const shell = document.createElement('section');
+        shell.className = 'lane';
+        shell.dataset.depth = String(depth);
+        shell.setAttribute('aria-label', `Relational projection depth ${depth}`);
+
+        const layer = document.createElement('div');
+        layer.className = 'material-layer';
+
+        const palette = document.createElement('div');
+        palette.className = 'operator-island';
+        palette.setAttribute('role', 'toolbar');
+        palette.setAttribute('aria-label', 'Local operators');
+
+        for (const operator of OPERATORS) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = operator;
+          button.dataset.operator = operator;
+          if (operator === '+') button.className = 'plus';
+          palette.appendChild(button);
+        }
+
+        shell.append(layer, palette);
+        laneStack.appendChild(shell);
+
+        const lane = {
+          depth,
+          shell,
+          layer,
+          palette,
+          items: [],
+          nodes: [],
+          pathKey: '__empty__',
+          focus: 0,
+          targetFocus: 0,
+          fieldCoordinate: null,
+          visualFieldCoordinate: null,
+          pendingInitialIndex: 0,
+          semanticIndex: 0,
+          fieldVelocity: 0,
+          lockedIndex: -1,
+          laneKey: depth === 0 ? 'root' : null,
+          boundSourceId: null,
+          boundParentDepth: depth > 0 ? depth - 1 : null,
+          logicalOpen: depth === 0,
+          transitionToken: 0,
+          candidateIndex: -1,
+          candidateStartedAt: 0,
+          candidateRevision: -1,
+          releaseStartedAt: 0,
+          lockOriginX: null,
+          lockOriginY: null,
+          openProgress: depth === 0 ? 1 : 0,
+          openTarget: depth === 0 ? 1 : 0,
+          visualOpacity: depth === 0 ? 1 : 0,
+          left: 0,
+          width: 0,
+          metrics: [],
+          itemOffsets: [],
+          paletteTop: null,
+          active: depth === 0
+        };
+
+        palette.addEventListener('pointerdown', (event) => event.stopPropagation());
+        palette.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-operator]');
+          if (!button || lane.lockedIndex < 0 || !lane.items[lane.lockedIndex]) return;
+          const target = lane.items[lane.lockedIndex];
+          if (state.operatorOwner !== target.id || state.inspectOwner !== target.id) return;
+          state.operatorTarget = target.id;
+          state.toastUntil = performance.now() + 1500;
+          actionToast.textContent = `${button.dataset.operator} · ${target.label}`;
+          actionToast.classList.add('visible');
+          updateDebug();
+        });
+
+        return lane;
+      }
+
+      const lanes = [createLane(0), createLane(1), createLane(2)];
+
+      function stateLabel(value) {
+        return String(value).replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function createMaterial(item, depth, index) {
+        const node = document.createElement('article');
+        node.className = `material size-${item.size || 'short'}`;
+        node.dataset.id = item.id;
+        node.dataset.depth = String(depth);
+        node.dataset.index = String(index);
+        node.tabIndex = -1;
+
+        if (item.kicker || item.state) {
+          const meta = document.createElement('div');
+          meta.className = 'material-meta';
+          if (item.kicker) {
+            const kicker = document.createElement('span');
+            kicker.className = 'kicker';
+            kicker.textContent = item.kicker;
+            meta.appendChild(kicker);
+          }
+          if (item.state) {
+            const mark = document.createElement('span');
+            mark.className = 'state-mark';
+            mark.dataset.state = item.state;
+            mark.textContent = stateLabel(item.state);
+            meta.appendChild(mark);
+          }
+          node.appendChild(meta);
+        }
+
+        const copy = document.createElement('div');
+        copy.className = 'copy';
+        copy.append(document.createTextNode(item.label));
+        node.appendChild(copy);
+
+        if (item.related && item.related.length) {
+          const cue = document.createElement('span');
+          cue.className = 'relation-cue';
+          cue.setAttribute('aria-label', 'More relational material');
+          node.appendChild(cue);
+        }
+
+        return node;
+      }
+
+      function setLaneItems(lane, items, pathKey, anchorIndex = 0) {
+        if (lane.pathKey === pathKey && lane.nodes.length === items.length) return;
+        lane.pathKey = pathKey;
+        lane.items = items;
+        lane.layer.replaceChildren();
+        lane.nodes = items.map((item, index) => {
+          const node = createMaterial(item, lane.depth, index);
+          lane.layer.appendChild(node);
+          return node;
+        });
+        lane.focus = clamp(anchorIndex, 0, Math.max(0, items.length - 1));
+        lane.targetFocus = lane.focus;
+        lane.fieldCoordinate = null;
+        lane.visualFieldCoordinate = null;
+        lane.pendingInitialIndex = lane.focus;
+        lane.semanticIndex = Math.round(lane.focus);
+        lane.fieldVelocity = 0;
+        lane.lockedIndex = -1;
+        lane.candidateIndex = -1;
+        lane.candidateStartedAt = 0;
+        lane.candidateRevision = -1;
+        lane.releaseStartedAt = 0;
+        lane.metrics = [];
+        lane.itemOffsets = items.map(() => 0);
+        lane.paletteTop = null;
+        lane.palette.classList.remove('visible');
+        lane.palette.removeAttribute('data-owner-id');
+      }
+
+      function clearLaneVisual(lane) {
+        setLaneItems(lane, [], `__empty__-${state.pathVersion}-${lane.depth}-${lane.transitionToken}`, 0);
+        lane.openProgress = lane.depth === 0 ? 1 : 0;
+        lane.openTarget = lane.depth === 0 ? 1 : 0;
+        lane.visualOpacity = lane.depth === 0 ? 1 : 0;
+      }
+
+      function resetLaneLogicalState(lane) {
+        lane.laneKey = lane.depth === 0 ? `${state.fixture}:root` : null;
+        lane.boundSourceId = null;
+        lane.boundParentDepth = lane.depth > 0 ? lane.depth - 1 : null;
+        lane.logicalOpen = lane.depth === 0;
+        lane.active = lane.depth === 0;
+        lane.transitionToken = 0;
+      }
+
+      function currentRelationOwner() {
+        const edge = state.relationPath[state.relationPath.length - 1];
+        return edge && edge.depth > 0 ? edge.sourceId : null;
+      }
+
+      function syncLogicalDepth() {
+        state.activeDepth = Math.max(0, state.relationPath.length - 1);
+        state.relationOwner = currentRelationOwner();
+      }
+
+      function relationEntry(depth) {
+        const entry = state.relationPath[depth];
+        return entry && entry.depth === depth ? entry : null;
+      }
+
+      function isLaneLogicallyValid(lane) {
+        if (lane.depth === 0) {
+          return lane.logicalOpen && relationEntry(0)?.laneKey === lane.laneKey;
+        }
+        const entry = relationEntry(lane.depth);
+        const parent = relationEntry(lane.depth - 1);
+        if (!entry || !parent || !lane.logicalOpen) return false;
+        if (entry.parentDepth !== lane.depth - 1 || entry.laneKey !== lane.laneKey || entry.sourceId !== lane.boundSourceId) return false;
+        const parentLane = lanes[lane.depth - 1];
+        const source = parentLane.items.find((item) => item.id === entry.sourceId);
+        return Boolean(source && source.related && source.related.length);
+      }
+
+      function currentFixture() { return FIXTURES[state.fixture]; }
+
+      function resetExperiment(fixtureKey = state.fixture) {
+        state.fixture = fixtureKey;
+        state.inspectOwner = null;
+        state.inspectOwnerDepth = null;
+        state.handoffCandidate = null;
+        state.handoffCandidateDepth = null;
+        state.handoffCandidateRevision = -1;
+        state.handoffStartedAt = 0;
+        state.operatorOwner = null;
+        state.operatorOwnerDepth = null;
+        state.pointerDrivenRetarget = false;
+        state.presentationMotionActive = false;
+        state.yInputMode = 'idle';
+        Object.assign(state.yPhysics, {
+          fieldVelocity: 0,
+          normalizedPointerSpeed: 0,
+          rawNormalizedSpeed: 0,
+          filteredNormalizedSpeed: 0,
+          visualLag: 0,
+          presentationFollowMs: SETTINGS.yPresentationAimMs,
+          directionalCommitment: 0,
+          adaptiveGain: SETTINGS.yBaseGain,
+          rangeCompression: 1,
+          remainingPointerRunway: 0,
+          laneKey: null,
+          direction: 0,
+          sameDirectionDistance: 0,
+          sameDirectionDuration: 0,
+          lastInputAt: 0,
+          lastReversalAt: 0,
+          currentSemanticMaterial: null,
+          crossedBoundaryCountThisSample: 0,
+          coalescingActive: false
+        });
+        state.relationOwner = null;
+        state.pathVersion += 1;
+        state.transitionSerial = 0;
+        state.closingTransitions = [];
+        state.operatorTarget = null;
+        state.activeDepth = 0;
+        state.camera = 0;
+        state.cameraTarget = 0;
+        state.activeMaterial = null;
+        state.pointer.intentMaterialId = null;
+        state.pointer.intentDepth = null;
+        state.pointer.intentKind = 'idle';
+        state.pointer.lastTime = 0;
+        state.pointer.lastMoveAt = 0;
+        state.pointer.dx = 0;
+        state.pointer.dy = 0;
+        state.pointer.velocity = 0;
+        const fixture = currentFixture();
+        const rootKey = `${state.fixture}:root`;
+        state.relationPath = [{ depth: 0, laneKey: rootKey }];
+        setLaneItems(lanes[0], fixture.roots, rootKey, fixture.startIndex);
+        resetLaneLogicalState(lanes[0]);
+        lanes[0].laneKey = rootKey;
+        lanes[0].openProgress = 1;
+        lanes[0].openTarget = 1;
+        for (let depth = 1; depth < lanes.length; depth += 1) {
+          resetLaneLogicalState(lanes[depth]);
+          clearLaneVisual(lanes[depth]);
+        }
+        syncLogicalDepth();
+        resetXGesture(state.pointer.x, state.pointer.y);
+        fixtureSelect.value = fixtureKey;
+        fixtureName.textContent = fixture.name;
+        actionToast.classList.remove('visible');
+        syncClasses();
+        updateDebug();
+      }
+
+      function setDirection(direction) {
+        if (!['a', 'b', 'c'].includes(direction)) return;
+        app.classList.remove('direction-a', 'direction-b', 'direction-c');
+        app.classList.add(`direction-${direction}`);
+        state.direction = direction;
+        for (const button of directionButtons) {
+          button.setAttribute('aria-pressed', String(button.dataset.direction === direction));
+        }
+        requestAnimationFrame(() => {
+          for (const lane of lanes) {
+            lane.pendingInitialIndex = lane.focus;
+            lane.fieldCoordinate = null;
+            lane.visualFieldCoordinate = null;
+            lane.metrics = [];
+          }
+          updateDebug();
+        });
+      }
+
+      function findMaterial(id, depth = null, includeClosing = false) {
+        for (const lane of lanes) {
+          if (depth !== null && lane.depth !== depth) continue;
+          if (!includeClosing && !isLaneLogicallyValid(lane)) continue;
+          const index = lane.items.findIndex((item) => item.id === id);
+          if (index >= 0) return { lane, index, item: lane.items[index], node: lane.nodes[index] };
+        }
+        return null;
+      }
+
+      function resetXGesture(x = state.pointer.x, y = state.pointer.y, owner = null) {
+        const gesture = state.xGesture;
+        gesture.anchorX = Number.isFinite(x) ? x : null;
+        gesture.anchorY = Number.isFinite(y) ? y : null;
+        gesture.direction = 'idle';
+        gesture.consumed = false;
+        gesture.displacementX = 0;
+        gesture.displacementY = 0;
+        gesture.consumedAtX = null;
+        gesture.consumedAt = 0;
+        gesture.originOwnerId = owner ? owner.item.id : null;
+        gesture.originOwnerDepth = owner ? owner.lane.depth : null;
+      }
+
+      function consumeXGesture(direction, now) {
+        const gesture = state.xGesture;
+        gesture.direction = direction;
+        gesture.consumed = true;
+        gesture.consumedAtX = state.pointer.x;
+        gesture.consumedAt = now;
+      }
+
+      function cancelHandoff() {
+        state.handoffCandidate = null;
+        state.handoffCandidateDepth = null;
+        state.handoffCandidateRevision = -1;
+        state.handoffStartedAt = 0;
+        state.pointerDrivenRetarget = false;
+      }
+
+      function eligibleHandoffTarget(id, depth) {
+        if (!id || (id === state.inspectOwner && depth === state.inspectOwnerDepth)) return null;
+        const found = findMaterial(id, depth);
+        if (!found || !found.lane.active || found.lane.visualOpacity <= .035) return null;
+        const opacity = Number.parseFloat(found.node.style.opacity || '1');
+        return opacity > .02 ? found : null;
+      }
+
+      function beginHandoff(found, now) {
+        if (!found || (found.item.id === state.inspectOwner && found.lane.depth === state.inspectOwnerDepth)) return false;
+        if (state.handoffCandidate === found.item.id && state.handoffCandidateDepth === found.lane.depth) {
+          state.pointerDrivenRetarget = true;
+          return true;
+        }
+        cancelHandoff();
+        state.handoffCandidate = found.item.id;
+        state.handoffCandidateDepth = found.lane.depth;
+        state.handoffCandidateRevision = state.pointer.revision;
+        state.handoffStartedAt = state.pointer.velocity <= SETTINGS.velocityThreshold ? now : 0;
+        state.pointerDrivenRetarget = true;
+        for (const lane of lanes) {
+          lane.candidateIndex = -1;
+          lane.candidateStartedAt = 0;
+          lane.candidateRevision = -1;
+          lane.releaseStartedAt = 0;
+        }
+        return true;
+      }
+
+      function updateHandoffCandidate(now) {
+        if (!state.handoffCandidate || !state.inspectOwner || !state.pointerDrivenRetarget) return;
+        const found = eligibleHandoffTarget(state.handoffCandidate, state.handoffCandidateDepth);
+        const samePhysicalTarget = found
+          && state.pointer.inside
+          && state.pointer.intentMaterialId === state.handoffCandidate
+          && state.pointer.intentDepth === state.handoffCandidateDepth;
+        if (!samePhysicalTarget) {
+          cancelHandoff();
+          return;
+        }
+
+        const stageRect = stage.getBoundingClientRect();
+        const nodeRect = found.node.getBoundingClientRect();
+        const pointerX = state.pointer.x + stageRect.left;
+        const pointerY = state.pointer.y + stageRect.top;
+        if (!pointInRect(pointerX, pointerY, nodeRect, 2)) {
+          // A moving presentation cannot impersonate continued physical targeting.
+          cancelHandoff();
+          return;
+        }
+
+        if (state.pointer.velocity > SETTINGS.velocityThreshold) {
+          state.handoffStartedAt = 0;
+          return;
+        }
+        if (!state.handoffStartedAt) state.handoffStartedAt = now;
+        if (now - state.handoffStartedAt >= SETTINGS.dwellMs) transferInspection(found);
+      }
+
+      function clearInspect({ resetGesture = true } = {}) {
+        cancelHandoff();
+        for (const lane of lanes) {
+          lane.lockedIndex = -1;
+          lane.candidateIndex = -1;
+          lane.candidateStartedAt = 0;
+          lane.releaseStartedAt = 0;
+          lane.lockOriginX = null;
+          lane.lockOriginY = null;
+          lane.paletteTop = null;
+          lane.palette.classList.remove('visible');
+          lane.palette.removeAttribute('data-owner-id');
+        }
+        state.inspectOwner = null;
+        state.inspectOwnerDepth = null;
+        state.operatorOwner = null;
+        state.operatorOwnerDepth = null;
+        state.operatorTarget = null;
+        if (resetGesture) resetXGesture();
+        syncClasses();
+      }
+
+      function beginClosingVisual(lane, entry, reason) {
+        const token = ++state.transitionSerial;
+        lane.transitionToken = token;
+        lane.openTarget = 0;
+        lane.logicalOpen = false;
+        lane.active = false;
+        lane.laneKey = null;
+        lane.boundSourceId = null;
+        lane.palette.classList.remove('visible');
+        lane.palette.removeAttribute('data-owner-id');
+        state.closingTransitions = state.closingTransitions.filter((transition) => transition.depth !== lane.depth);
+        if (lane.openProgress > .015 && lane.items.length) {
+          state.closingTransitions.push({
+            depth: lane.depth,
+            laneKey: entry?.laneKey || lane.pathKey,
+            sourceId: entry?.sourceId || null,
+            token,
+            version: state.pathVersion,
+            reason,
+            progress: lane.openProgress
+          });
+        } else if (!lane.logicalOpen) {
+          clearLaneVisual(lane);
+        }
+      }
+
+      function invalidateFromDepth(startDepth, reason = 'source-replaced') {
+        const first = clamp(startDepth, 1, lanes.length);
+        if (first >= lanes.length) return false;
+        const removed = state.relationPath.slice(first);
+        const hadLogicalPath = removed.length > 0;
+        state.pathVersion += 1;
+        state.relationPath = state.relationPath.slice(0, first);
+        for (let depth = first; depth < lanes.length; depth += 1) {
+          const lane = lanes[depth];
+          const entry = removed.find((candidate) => candidate.depth === depth) || null;
+          if (lane.logicalOpen || lane.openProgress > .015 || lane.items.length) beginClosingVisual(lane, entry, reason);
+          lane.lockedIndex = -1;
+          lane.candidateIndex = -1;
+          lane.candidateStartedAt = 0;
+          lane.releaseStartedAt = 0;
+        }
+        if (state.inspectOwnerDepth !== null && state.inspectOwnerDepth >= first) clearInspect({ resetGesture: false });
+        if (state.handoffCandidateDepth !== null && state.handoffCandidateDepth >= first) cancelHandoff();
+        syncLogicalDepth();
+        return hadLogicalPath;
+      }
+
+      function enforceSourceBinding(lane, item) {
+        const childEntry = relationEntry(lane.depth + 1);
+        if (childEntry && childEntry.sourceId !== item.id) invalidateFromDepth(lane.depth + 1, 'source-replaced');
+      }
+
+      function inspectMaterial(lane, index, origin = null) {
+        const item = lane.items[index];
+        if (!item || !isLaneLogicallyValid(lane)) return false;
+        enforceSourceBinding(lane, item);
+        clearInspect({ resetGesture: false });
+        lane.lockedIndex = index;
+        lane.candidateIndex = -1;
+        lane.targetFocus = lane.focus;
+        lane.lockOriginX = origin && Number.isFinite(origin.x) ? origin.x : state.pointer.x;
+        lane.lockOriginY = origin && Number.isFinite(origin.y) ? origin.y : state.pointer.y;
+        state.inspectOwner = item.id;
+        state.inspectOwnerDepth = lane.depth;
+        state.operatorOwner = item.id;
+        state.operatorOwnerDepth = lane.depth;
+        state.activeMaterial = item.id;
+        lane.palette.dataset.ownerId = item.id;
+        lane.palette.classList.add('visible');
+        resetXGesture(lane.lockOriginX, lane.lockOriginY, { lane, item });
+        syncLogicalDepth();
+        syncClasses();
+        updateDebug();
+        return true;
+      }
+
+      function transferInspection(found) {
+        if (!found || !state.inspectOwner) return false;
+        const previous = findMaterial(state.inspectOwner, state.inspectOwnerDepth);
+        if (!previous || (previous.item.id === found.item.id && previous.lane.depth === found.lane.depth)) {
+          cancelHandoff();
+          return false;
+        }
+        return inspectMaterial(found.lane, found.index, { x: state.pointer.x, y: state.pointer.y });
+      }
+
+      function openRelationFrom(lane, index, now = performance.now()) {
+        const item = lane.items[index];
+        const child = lanes[lane.depth + 1];
+        const parentEntry = relationEntry(lane.depth);
+        if (!item || !child || !parentEntry || !isLaneLogicallyValid(lane) || !item.related || !item.related.length) return false;
+
+        invalidateFromDepth(lane.depth + 1, 'relation-replaced');
+        const laneKey = `${parentEntry.laneKey}/${item.id}`;
+        state.pathVersion += 1;
+        const entry = {
+          depth: lane.depth + 1,
+          parentDepth: lane.depth,
+          sourceId: item.id,
+          laneKey
+        };
+        state.relationPath.push(entry);
+        state.closingTransitions = state.closingTransitions.filter((transition) => transition.depth !== child.depth);
+        child.transitionToken = ++state.transitionSerial;
+        setLaneItems(child, item.related, laneKey, 0);
+        child.laneKey = laneKey;
+        child.boundSourceId = item.id;
+        child.boundParentDepth = lane.depth;
+        child.logicalOpen = true;
+        child.active = true;
+        child.openProgress = 0;
+        child.openTarget = 1;
+        clearInspect({ resetGesture: false });
+        syncLogicalDepth();
+        state.pointer.intentKind = 'relation';
+        consumeXGesture('right', now);
+        syncClasses();
+        return true;
+      }
+
+      function closeDepth(depth, now = performance.now()) {
+        const entry = relationEntry(depth);
+        if (depth <= 0 || depth > 2 || !entry) return false;
+        const parent = lanes[depth - 1];
+        const returningSourceId = entry.sourceId;
+
+        // Navigation commits now; subsequent animation only releases visuals.
+        invalidateFromDepth(depth, 'return');
+        clearInspect({ resetGesture: false });
+        const sourceIndex = parent.items.findIndex((item) => item.id === returningSourceId);
+        if (sourceIndex >= 0 && isLaneLogicallyValid(parent)) {
+          inspectMaterial(parent, sourceIndex, { x: state.pointer.x, y: state.pointer.y });
+        }
+        syncLogicalDepth();
+        state.pointer.intentKind = 'return';
+        consumeXGesture('left', now);
+        return true;
+      }
+
+      function laneAtPointer() {
+        if (!state.pointer.inside || state.pointer.x === null) return lanes[state.activeDepth] || lanes[0];
+        const ordered = [...lanes].filter((lane) => lane.active && isLaneLogicallyValid(lane)).sort((a, b) => b.depth - a.depth);
+        return ordered.find((lane) => state.pointer.x >= lane.left && state.pointer.x <= lane.left + lane.width) || ordered[0] || lanes[0];
+      }
+
+      function pointInRect(x, y, rect, pad = 0) {
+        return x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad;
+      }
+
+      function localGeometry(inspected, override = null) {
+        if (override) {
+          const onOwnerMaterial = Boolean(override.onOwnerMaterial);
+          const inOperatorBridge = Boolean(override.inOperatorBridge);
+          const inOperatorPalette = Boolean(override.inOperatorPalette);
+          return {
+            onOwnerMaterial,
+            inOperatorBridge,
+            inOperatorPalette,
+            inInspectContinuityRegion: onOwnerMaterial || inOperatorBridge || inOperatorPalette,
+            inOperatorTravelZone: inOperatorBridge || inOperatorPalette
+          };
+        }
+        const lane = inspected?.lane;
+        if (!lane || lane.lockedIndex < 0 || state.pointer.x === null || state.pointer.y === null) {
+          return {
+            onOwnerMaterial: false,
+            inOperatorBridge: false,
+            inOperatorPalette: false,
+            inInspectContinuityRegion: false,
+            inOperatorTravelZone: false
+          };
+        }
+        const owner = lane.nodes[lane.lockedIndex];
+        if (!owner || !lane.palette.classList.contains('visible')) return {
+          onOwnerMaterial: false,
+          inOperatorBridge: false,
+          inOperatorPalette: false,
+          inInspectContinuityRegion: false,
+          inOperatorTravelZone: false
+        };
+        const stageRect = stage.getBoundingClientRect();
+        const ownerRect = owner.getBoundingClientRect();
+        const paletteRect = lane.palette.getBoundingClientRect();
+        const x = state.pointer.x + stageRect.left;
+        const y = state.pointer.y + stageRect.top;
+        const onOwnerMaterial = pointInRect(x, y, ownerRect, 3);
+        const inOperatorPalette = pointInRect(x, y, paletteRect, 7);
+        const overlapLeft = Math.max(ownerRect.left, paletteRect.left) - 12;
+        const overlapRight = Math.min(ownerRect.right, paletteRect.right) + 12;
+        const corridor = {
+          left: Math.min(overlapLeft, overlapRight),
+          right: Math.max(overlapLeft, overlapRight),
+          top: Math.min(ownerRect.bottom, paletteRect.top),
+          bottom: Math.max(ownerRect.bottom, paletteRect.top)
+        };
+        const inOperatorBridge = !onOwnerMaterial && !inOperatorPalette && pointInRect(x, y, corridor, 6);
+        return {
+          onOwnerMaterial,
+          inOperatorBridge,
+          inOperatorPalette,
+          inInspectContinuityRegion: onOwnerMaterial || inOperatorBridge || inOperatorPalette,
+          inOperatorTravelZone: inOperatorBridge || inOperatorPalette
+        };
+      }
+
+      function maxFieldCoordinate(lane) {
+        return lane.metrics.length ? lane.metrics[lane.metrics.length - 1].center : 0;
+      }
+
+      function coordinateToFocus(lane, coordinate) {
+        if (!lane.metrics.length) return 0;
+        const value = clamp(coordinate, 0, maxFieldCoordinate(lane));
+        let low = 0;
+        let high = lane.metrics.length - 1;
+        while (low < high) {
+          const middle = Math.floor((low + high + 1) / 2);
+          if (lane.metrics[middle].center <= value) low = middle;
+          else high = middle - 1;
+        }
+        const next = Math.min(lane.metrics.length - 1, low + 1);
+        if (next === low) return low;
+        const span = lane.metrics[next].center - lane.metrics[low].center;
+        return low + (span > 0 ? (value - lane.metrics[low].center) / span : 0);
+      }
+
+      function semanticIndexAtCoordinate(lane, coordinate) {
+        if (!lane.metrics.length) return -1;
+        const focus = coordinateToFocus(lane, coordinate);
+        return clamp(Math.round(focus), 0, lane.metrics.length - 1);
+      }
+
+      function localMaterialScale(lane, index = lane.semanticIndex) {
+        if (lane.metrics.length < 2) return lane.metrics[0]?.height || 64;
+        const start = clamp(index - 1, 0, lane.metrics.length - 2);
+        const end = clamp(index + 1, 1, lane.metrics.length - 1);
+        const spans = [];
+        for (let i = start; i <= end; i += 1) {
+          if (i > 0) spans.push(lane.metrics[i].center - lane.metrics[i - 1].center);
+        }
+        return spans.length ? spans.reduce((sum, value) => sum + value, 0) / spans.length : 64;
+      }
+
+      function syncLaneCoordinate(lane) {
+        if (!lane.metrics.length) {
+          lane.focus = 0;
+          lane.targetFocus = 0;
+          lane.semanticIndex = -1;
+          return;
+        }
+        if (!Number.isFinite(lane.fieldCoordinate)) {
+          const index = clamp(Math.round(lane.pendingInitialIndex || 0), 0, lane.metrics.length - 1);
+          lane.fieldCoordinate = lane.metrics[index].center;
+          lane.visualFieldCoordinate = lane.fieldCoordinate;
+        }
+        lane.fieldCoordinate = clamp(lane.fieldCoordinate, 0, maxFieldCoordinate(lane));
+        if (!Number.isFinite(lane.visualFieldCoordinate)) lane.visualFieldCoordinate = lane.fieldCoordinate;
+        lane.visualFieldCoordinate = clamp(lane.visualFieldCoordinate, 0, maxFieldCoordinate(lane));
+        lane.targetFocus = coordinateToFocus(lane, lane.fieldCoordinate);
+        lane.focus = coordinateToFocus(lane, lane.visualFieldCoordinate);
+        lane.semanticIndex = semanticIndexAtCoordinate(lane, lane.fieldCoordinate);
+      }
+
+      function evaluatePresentationFollowMs(lane, now) {
+        const physics = state.yPhysics;
+        const receivesYInput = physics.laneKey === lane.laneKey
+          && physics.lastInputAt
+          && now - physics.lastInputAt <= SETTINGS.yMotionStopMs;
+        if (!receivesYInput) return SETTINGS.yPresentationAimMs;
+        const normalEnergy = smoothstep(.06, .56, physics.filteredNormalizedSpeed);
+        const travelEnergy = smoothstep(.42, 1.32, physics.filteredNormalizedSpeed)
+          * (.42 + .58 * physics.directionalCommitment);
+        const normalFollow = mix(SETTINGS.yPresentationAimMs, SETTINGS.yPresentationNormalMs, normalEnergy);
+        return mix(normalFollow, SETTINGS.yPresentationTravelMs, travelEnergy);
+      }
+
+      function advanceVisualFieldCoordinate(lane, dt, now) {
+        syncLaneCoordinate(lane);
+        if (!lane.metrics.length || !Number.isFinite(lane.fieldCoordinate)) return;
+        const target = lane.fieldCoordinate;
+        const current = lane.visualFieldCoordinate;
+        const followMs = evaluatePresentationFollowMs(lane, now);
+        const localScale = localMaterialScale(lane, lane.semanticIndex);
+        const maxLag = Math.max(6, localScale * SETTINGS.yMaxVisualLagRatio);
+        const delta = target - current;
+        const reverseTail = state.yPhysics.laneKey === lane.laneKey
+          && state.yPhysics.lastReversalAt
+          && now - state.yPhysics.lastReversalAt <= 50
+          && Math.sign(delta)
+          && Math.sign(delta) !== state.yPhysics.direction;
+
+        if (reverseTail || Math.abs(delta) <= .04) {
+          lane.visualFieldCoordinate = target;
+        } else {
+          const lagRatio = Math.abs(delta) / Math.max(1, maxLag);
+          const baseFollow = expEase(dt, followMs);
+          const catchupBoost = smoothstep(1, 3, lagRatio) * .72;
+          const follow = 1 - (1 - baseFollow) * (1 - catchupBoost);
+          let next = mix(current, target, follow);
+          if (Math.abs(target - next) > maxLag) next = target - Math.sign(delta) * maxLag;
+          lane.visualFieldCoordinate = clamp(next, Math.min(current, target), Math.max(current, target));
+        }
+
+        lane.focus = coordinateToFocus(lane, lane.visualFieldCoordinate);
+        if (state.yPhysics.laneKey === lane.laneKey) {
+          state.yPhysics.visualLag = lane.fieldCoordinate - lane.visualFieldCoordinate;
+          state.yPhysics.presentationFollowMs = followMs;
+        }
+      }
+
+      function applyYExposure(dy, inputLane = laneAtPointer(), now = performance.now(), sampleDt = 16) {
+        const physics = state.yPhysics;
+        if (!inputLane || !inputLane.active || !isLaneLogicallyValid(inputLane) || Math.abs(dy) <= .01) {
+          physics.fieldVelocity = 0;
+          if (inputLane) inputLane.fieldVelocity = 0;
+          return false;
+        }
+
+        updateMetrics(inputLane);
+        syncLaneCoordinate(inputLane);
+        if (physics.laneKey !== inputLane.laneKey) {
+          physics.laneKey = inputLane.laneKey;
+          physics.direction = 0;
+          physics.rawNormalizedSpeed = 0;
+          physics.filteredNormalizedSpeed = 0;
+          physics.normalizedPointerSpeed = 0;
+          physics.directionalCommitment = 0;
+          physics.sameDirectionDistance = 0;
+          physics.sameDirectionDuration = 0;
+          physics.lastReversalAt = 0;
+          physics.adaptiveGain = SETTINGS.yBaseGain;
+          physics.rangeCompression = 1;
+        }
+        const dt = clamp(sampleDt, 1, 80);
+        const direction = Math.sign(dy);
+        const reversed = physics.direction !== 0 && direction !== physics.direction;
+        const stageHeight = Math.max(1, stage.clientHeight);
+        const verticalPointerSpeed = Math.abs(dy) / dt * 1000;
+        const localScale = localMaterialScale(inputLane);
+        const normalizationScale = Math.max(stageHeight * .88, localScale * 7.5);
+        const rawNormalizedSpeed = verticalPointerSpeed / normalizationScale;
+
+        if (reversed) {
+          physics.filteredNormalizedSpeed = rawNormalizedSpeed;
+          physics.lastReversalAt = now;
+          physics.directionalCommitment = 0;
+          physics.sameDirectionDistance = Math.abs(dy);
+          physics.sameDirectionDuration = 0;
+          physics.adaptiveGain = SETTINGS.yBaseGain;
+          physics.rangeCompression = 1;
+        } else {
+          const speedResponseMs = rawNormalizedSpeed > physics.filteredNormalizedSpeed
+            ? SETTINGS.ySpeedRiseMs
+            : SETTINGS.ySpeedFallMs;
+          physics.filteredNormalizedSpeed = mix(
+            physics.filteredNormalizedSpeed,
+            rawNormalizedSpeed,
+            expEase(dt, speedResponseMs)
+          );
+          physics.sameDirectionDistance += Math.abs(dy);
+          physics.sameDirectionDuration += dt;
+        }
+        physics.direction = direction;
+
+        const normalizedSpeed = physics.filteredNormalizedSpeed;
+        const speedEnergy = smoothstep(.08, 1.25, normalizedSpeed);
+        const distanceEnergy = smoothstep(stageHeight * .02, stageHeight * .25, physics.sameDirectionDistance);
+        const durationEnergy = smoothstep(35, 380, physics.sameDirectionDuration);
+        const commitmentTarget = speedEnergy * (.42 * distanceEnergy + .32 * durationEnergy + .26 * speedEnergy);
+        if (!reversed) {
+          physics.directionalCommitment = mix(
+            physics.directionalCommitment,
+            commitmentTarget,
+            clamp(dt / 78, .1, .52)
+          );
+        }
+        if (normalizedSpeed < .26) {
+          physics.directionalCommitment *= Math.exp(-dt / 58);
+        }
+
+        const travelEnergy = reversed
+          ? 0
+          : speedEnergy * (.24 + .76 * physics.directionalCommitment);
+        const evaluatedAdaptiveGain = mix(SETTINGS.yBaseGain, SETTINGS.yMaxAdaptiveGain, travelEnergy);
+        const gainResponseMs = evaluatedAdaptiveGain > physics.adaptiveGain
+          ? SETTINGS.yGainRiseMs
+          : SETTINGS.yGainFallMs;
+        const adaptiveGain = reversed
+          ? SETTINGS.yBaseGain
+          : mix(physics.adaptiveGain, evaluatedAdaptiveGain, expEase(dt, gainResponseMs));
+        const runway = direction > 0
+          ? Math.max(0, stageHeight - state.pointer.y - SETTINGS.yRunwayMargin)
+          : Math.max(0, state.pointer.y - SETTINGS.yRunwayMargin);
+        const semanticRemaining = direction > 0
+          ? Math.max(0, maxFieldCoordinate(inputLane) - inputLane.fieldCoordinate)
+          : Math.max(0, inputLane.fieldCoordinate);
+        const estimatedUncompressedReach = Math.max(localScale, runway * adaptiveGain);
+        const semanticPressure = smoothstep(
+          estimatedUncompressedReach * .8,
+          estimatedUncompressedReach * 2.8,
+          semanticRemaining
+        );
+        const runwayPressure = 1 - clamp(runway / (stageHeight * .58), 0, 1);
+        const compressionEnergy = physics.directionalCommitment
+          * speedEnergy
+          * (.3 + .7 * runwayPressure)
+          * (.34 + .66 * semanticPressure);
+        const evaluatedRangeCompression = reversed
+          ? 1
+          : mix(1, SETTINGS.yMaxRangeCompression, compressionEnergy);
+        const compressionResponseMs = evaluatedRangeCompression > physics.rangeCompression
+          ? SETTINGS.yCompressionRiseMs
+          : SETTINGS.yCompressionFallMs;
+        const rangeCompression = reversed
+          ? 1
+          : mix(physics.rangeCompression, evaluatedRangeCompression, expEase(dt, compressionResponseMs));
+        const totalGain = Math.min(SETTINGS.yMaxTotalGain, adaptiveGain * rangeCompression);
+        const oldSemanticIndex = inputLane.semanticIndex;
+        const semanticDelta = dy * totalGain;
+        const previousCoordinate = inputLane.fieldCoordinate;
+        inputLane.fieldCoordinate = clamp(
+          inputLane.fieldCoordinate + semanticDelta,
+          0,
+          maxFieldCoordinate(inputLane)
+        );
+        const appliedDelta = inputLane.fieldCoordinate - previousCoordinate;
+        syncLaneCoordinate(inputLane);
+        const crossedBoundaries = Math.abs(inputLane.semanticIndex - oldSemanticIndex);
+        const coalescing = crossedBoundaries >= SETTINGS.yCoalesceBoundaryCount
+          || (physics.directionalCommitment > .68 && Math.abs(appliedDelta) > localScale * 1.3);
+
+        inputLane.fieldVelocity = appliedDelta / dt * 1000;
+        physics.fieldVelocity = inputLane.fieldVelocity;
+        physics.rawNormalizedSpeed = rawNormalizedSpeed;
+        physics.filteredNormalizedSpeed = normalizedSpeed;
+        physics.normalizedPointerSpeed = normalizedSpeed;
+        physics.adaptiveGain = adaptiveGain;
+        physics.rangeCompression = rangeCompression;
+        physics.remainingPointerRunway = runway;
+        physics.lastInputAt = now;
+        physics.currentSemanticMaterial = inputLane.items[inputLane.semanticIndex]?.id || null;
+        physics.crossedBoundaryCountThisSample = crossedBoundaries;
+        physics.coalescingActive = coalescing;
+        state.yInputMode = coalescing ? 'field-coalesced' : (physics.directionalCommitment > .42 ? 'field-travel' : 'field-aim');
+        return true;
+      }
+
+      function stopYSample() {
+        const physics = state.yPhysics;
+        physics.fieldVelocity = 0;
+        physics.rawNormalizedSpeed = 0;
+        physics.crossedBoundaryCountThisSample = 0;
+        physics.coalescingActive = false;
+        for (const lane of lanes) lane.fieldVelocity = 0;
+      }
+
+      function captureIntentTarget(event) {
+        const eventMaterial = event.target.closest && event.target.closest('.material');
+        const hitMaterial = document.elementsFromPoint(event.clientX, event.clientY)
+          .map((element) => element.closest && element.closest('.material'))
+          .find(Boolean);
+        const material = eventMaterial || hitMaterial;
+        if (material) {
+          const depth = Number(material.dataset.depth);
+          const lane = lanes[depth];
+          if (lane && lane.active && isLaneLogicallyValid(lane)) {
+            return { materialId: material.dataset.id, depth, kind: 'material' };
+          }
+        }
+        if (event.target.closest && event.target.closest('.operator-island')) {
+          return { materialId: null, depth: null, kind: 'operator' };
+        }
+        return { materialId: null, depth: null, kind: 'field' };
+      }
+
+      function isHorizontalGestureTracking() {
+        const gesture = state.xGesture;
+        return Math.abs(gesture.displacementX) >= SETTINGS.xTrackingThreshold
+          && Math.abs(gesture.displacementX) >= Math.abs(gesture.displacementY) * SETTINGS.xDominanceRatio;
+      }
+
+      function updateXGesture(inspected, geometry, now) {
+        const gesture = state.xGesture;
+        const x = state.pointer.x;
+        const y = state.pointer.y;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+        if (!Number.isFinite(gesture.anchorX) || !Number.isFinite(gesture.anchorY)) {
+          resetXGesture(x, y, geometry.onOwnerMaterial ? inspected : null);
+          return false;
+        }
+
+        gesture.displacementX = x - gesture.anchorX;
+        gesture.displacementY = y - gesture.anchorY;
+        const absX = Math.abs(gesture.displacementX);
+        const absY = Math.abs(gesture.displacementY);
+
+        if (absY >= SETTINGS.xVerticalReanchor && absY > absX * 1.08) {
+          resetXGesture(x, y, geometry.onOwnerMaterial ? inspected : null);
+          return false;
+        }
+
+        if (gesture.consumed) {
+          const reversed = gesture.direction === 'right'
+            ? x <= gesture.consumedAtX - SETTINGS.xResetDistance
+            : x >= gesture.consumedAtX + SETTINGS.xResetDistance;
+          if (reversed) resetXGesture(x, y, geometry.onOwnerMaterial ? inspected : null);
+          return false;
+        }
+
+        if (absX >= SETTINGS.xTrackingThreshold && absX >= absY * SETTINGS.xDominanceRatio) {
+          gesture.direction = gesture.displacementX > 0 ? 'right' : 'left';
+        } else if (absY >= SETTINGS.xTrackingThreshold && absY > absX) {
+          gesture.direction = 'vertical';
+        } else {
+          gesture.direction = 'idle';
+        }
+
+        const deliberateHorizontal = absX >= SETTINGS.xOpenThreshold
+          && absX >= absY * SETTINGS.xDominanceRatio;
+        if (!deliberateHorizontal) return false;
+
+        if (gesture.displacementX < 0 && state.activeDepth > 0) {
+          return closeDepth(state.activeDepth, now);
+        }
+
+        const ownsGesture = inspected
+          && gesture.originOwnerId === inspected.item.id
+          && gesture.originOwnerDepth === inspected.lane.depth;
+        if (gesture.displacementX > 0 && ownsGesture && inspected.item.related?.length) {
+          return openRelationFrom(inspected.lane, inspected.index, now);
+        }
+        return false;
+      }
+
+      function processPointerSample(sample) {
+        const now = sample.now ?? performance.now();
+        const x = sample.x;
+        const y = sample.y;
+        const previousX = state.pointer.x;
+        const previousY = state.pointer.y;
+        let dx = 0;
+        let dy = 0;
+        let sampleDt = 16;
+        if (state.pointer.lastTime > 0 && previousX !== null && previousY !== null) {
+          dx = x - previousX;
+          dy = y - previousY;
+          sampleDt = Math.max(1, now - state.pointer.lastTime);
+          const speed = Math.hypot(dx, dy) / sampleDt * 1000;
+          state.pointer.velocity = mix(state.pointer.velocity, speed, .34);
+        }
+        const previousIntentId = state.pointer.intentMaterialId;
+        const previousIntentDepth = state.pointer.intentDepth;
+        state.pointer.x = x;
+        state.pointer.y = y;
+        state.pointer.lastX = previousX;
+        state.pointer.lastY = previousY;
+        state.pointer.lastTime = now;
+        state.pointer.dx = dx;
+        state.pointer.dy = dy;
+        state.pointer.inside = true;
+        const movedByPointer = Math.abs(dx) + Math.abs(dy) > .35;
+        if (movedByPointer) {
+          state.pointer.revision += 1;
+          state.pointer.lastMoveAt = now;
+        }
+        state.pointer.intentMaterialId = sample.intentMaterialId ?? null;
+        state.pointer.intentDepth = sample.intentDepth ?? null;
+        state.pointer.intentKind = sample.intentKind || (sample.intentMaterialId ? 'material' : 'field');
+        state.yInputMode = 'idle';
+
+        const inspected = state.inspectOwner ? findMaterial(state.inspectOwner, state.inspectOwnerDepth) : null;
+        const geometry = localGeometry(inspected, sample.geometryOverride);
+        if (inspected) {
+          if (geometry.inOperatorTravelZone) {
+            state.yInputMode = geometry.inOperatorPalette ? 'operator-palette' : 'operator-bridge';
+            stopYSample();
+            cancelHandoff();
+            inspected.lane.releaseStartedAt = 0;
+            return;
+          }
+
+          const handoffTarget = movedByPointer
+            ? eligibleHandoffTarget(state.pointer.intentMaterialId, state.pointer.intentDepth)
+            : null;
+          if (handoffTarget) {
+            beginHandoff(handoffTarget, now);
+            inspected.lane.releaseStartedAt = 0;
+          } else if (state.handoffCandidate && (
+            state.pointer.intentMaterialId !== state.handoffCandidate
+            || state.pointer.intentDepth !== state.handoffCandidateDepth
+          )) {
+            cancelHandoff();
+          }
+
+          const enteredOwner = geometry.onOwnerMaterial
+            && (previousIntentId !== inspected.item.id || previousIntentDepth !== inspected.lane.depth);
+          if (enteredOwner && !state.xGesture.consumed) resetXGesture(x, y, inspected);
+
+          const xTransition = updateXGesture(inspected, geometry, now);
+          if (xTransition) {
+            state.yInputMode = state.pointer.intentKind === 'return' ? 'relation-return' : 'relation-open';
+            stopYSample();
+            return;
+          }
+
+          const ownerRect = inspected.node.getBoundingClientRect();
+          const stageRect = stage.getBoundingClientRect();
+          const distanceY = y - (ownerRect.top - stageRect.top + ownerRect.height / 2);
+          if (geometry.inInspectContinuityRegion) {
+            inspected.lane.releaseStartedAt = 0;
+          } else if (Math.abs(distanceY) > SETTINGS.releaseDistance) {
+            if (!inspected.lane.releaseStartedAt) inspected.lane.releaseStartedAt = now;
+          } else {
+            inspected.lane.releaseStartedAt = 0;
+          }
+
+          if (isHorizontalGestureTracking()) {
+            state.yInputMode = 'x-tracking';
+            stopYSample();
+          } else {
+            applyYExposure(dy, laneAtPointer(), now, sampleDt);
+          }
+          return;
+        }
+
+        cancelHandoff();
+        const emptyGeometry = localGeometry(null, sample.geometryOverride);
+        if (updateXGesture(null, emptyGeometry, now)) {
+          state.yInputMode = 'relation-return';
+          stopYSample();
+          return;
+        }
+        if (isHorizontalGestureTracking()) {
+          state.yInputMode = 'x-tracking';
+          stopYSample();
+        } else {
+          applyYExposure(dy, laneAtPointer(), now, sampleDt);
+        }
+      }
+
+      function updatePointer(event) {
+        const rect = stage.getBoundingClientRect();
+        const hit = captureIntentTarget(event);
+        processPointerSample({
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+          now: performance.now(),
+          intentMaterialId: hit.materialId,
+          intentDepth: hit.depth,
+          intentKind: hit.kind
+        });
+      }
+
+      function updateMetrics(lane) {
+        if (!lane.nodes.length) {
+          lane.metrics = [];
+          lane.fieldCoordinate = null;
+          lane.visualFieldCoordinate = null;
+          return;
+        }
+        const gap = parseFloat(getComputedStyle(app).getPropertyValue('--row-gap')) || 16;
+        const heights = lane.nodes.map((node) => node.offsetHeight);
+        const anchors = [0];
+        for (let i = 1; i < heights.length; i += 1) {
+          anchors[i] = anchors[i - 1] + heights[i - 1] / 2 + heights[i] / 2 + gap;
+        }
+        lane.metrics = anchors.map((center, index) => ({ center, height: heights[index] }));
+      }
+
+      function focusAnchor(lane) {
+        if (!lane.metrics.length) return 0;
+        if (Number.isFinite(lane.visualFieldCoordinate)) return lane.visualFieldCoordinate;
+        const low = clamp(Math.floor(lane.focus), 0, lane.metrics.length - 1);
+        const high = clamp(Math.ceil(lane.focus), 0, lane.metrics.length - 1);
+        const fraction = lane.focus - low;
+        return mix(lane.metrics[low].center, lane.metrics[high].center, fraction);
+      }
+
+      function updateLaneMaterials(lane, dt, now) {
+        if (!lane.nodes.length || lane.visualOpacity < .015) return;
+        updateMetrics(lane);
+        advanceVisualFieldCoordinate(lane, dt, now);
+        const stageHeight = stage.clientHeight;
+        const visualCenter = Math.max(160, Math.min(stageHeight - 150, stageHeight * .49));
+        const anchor = focusAnchor(lane);
+        const reserveVisible = lane.lockedIndex >= 0 && lane.palette.classList.contains('visible');
+        const offsetEase = expEase(dt, 105);
+
+        for (let index = 0; index < lane.nodes.length; index += 1) {
+          const node = lane.nodes[index];
+          const metric = lane.metrics[index];
+          const targetOffset = reserveVisible && index > lane.lockedIndex ? SETTINGS.operatorReserve : 0;
+          lane.itemOffsets[index] = mix(lane.itemOffsets[index] || 0, targetOffset, offsetEase);
+          const afterOwner = lane.itemOffsets[index];
+          const center = visualCenter + metric.center - anchor + afterOwner;
+          const top = center - metric.height / 2;
+          const distance = Math.abs(index - lane.focus);
+          const visibleRadius = Math.max(3.4, stageHeight / 145);
+          const opacity = clamp(1 - Math.max(0, distance - .7) / visibleRadius, 0, 1);
+          const scale = 1 - Math.min(.035, distance * .006);
+          node.style.setProperty('--material-opacity', opacity.toFixed(3));
+          node.style.opacity = (opacity * lane.visualOpacity).toFixed(3);
+          node.style.transform = `translate3d(-50%, ${top.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
+          node.style.zIndex = String(1000 - Math.round(distance * 10));
+        }
+
+        if (lane.lockedIndex >= 0 && lane.nodes[lane.lockedIndex]) {
+          const ownerMetric = lane.metrics[lane.lockedIndex];
+          const ownerCenter = visualCenter + ownerMetric.center - anchor + (lane.itemOffsets[lane.lockedIndex] || 0);
+          const ownerTop = ownerCenter - ownerMetric.height / 2;
+          const targetPaletteTop = Math.min(stageHeight - 52, ownerTop + ownerMetric.height + SETTINGS.operatorGap);
+          lane.paletteTop = lane.paletteTop === null
+            ? targetPaletteTop
+            : mix(lane.paletteTop, targetPaletteTop, offsetEase);
+          lane.palette.style.top = `${lane.paletteTop.toFixed(2)}px`;
+          lane.palette.style.left = '50%';
+        }
+
+        const intentMatch = state.pointer.intentMaterialId && state.pointer.intentDepth === lane.depth
+          ? lane.items.findIndex((item) => item.id === state.pointer.intentMaterialId)
+          : -1;
+        if (lane.active && isLaneLogicallyValid(lane) && !state.inspectOwner && lane.lockedIndex < 0 && state.pointer.inside && state.pointer.velocity <= SETTINGS.velocityThreshold && intentMatch >= 0) {
+          const node = lane.nodes[intentMatch];
+          const nodeRect = node.getBoundingClientRect();
+          const stageRect = stage.getBoundingClientRect();
+          const px = state.pointer.x + stageRect.left;
+          const py = state.pointer.y + stageRect.top;
+          if (pointInRect(px, py, nodeRect, 2)) {
+            if (lane.candidateIndex !== intentMatch || lane.candidateRevision < 0) {
+              lane.candidateIndex = intentMatch;
+              lane.candidateStartedAt = now;
+              lane.candidateRevision = state.pointer.revision;
+            }
+            if (now - lane.candidateStartedAt >= SETTINGS.dwellMs) {
+              inspectMaterial(lane, intentMatch, { x: state.pointer.x, y: state.pointer.y });
+            }
+          } else {
+            lane.candidateIndex = -1;
+            lane.candidateStartedAt = 0;
+          }
+        } else if (!state.inspectOwner && lane.lockedIndex < 0 && intentMatch < 0) {
+          lane.candidateIndex = -1;
+          lane.candidateStartedAt = 0;
+        }
+
+        if (lane.lockedIndex >= 0 && lane.releaseStartedAt && now - lane.releaseStartedAt >= SETTINGS.releaseGraceMs) {
+          clearInspect();
+        }
+      }
+
+      function updateCamera(dt) {
+        const p1 = lanes[1].openProgress;
+        const p2 = lanes[2].openProgress;
+        state.cameraTarget = .5 * p1 + p2;
+        state.camera = mix(state.camera, state.cameraTarget, expEase(dt, SETTINGS.cameraTimeMs));
+
+        const width = stage.clientWidth;
+        const openAmount = clamp(Math.max(p1, p2), 0, 1);
+        const laneWidth = clamp(mix(width * .62, width * .415, openAmount), 320, 720);
+        const step = Math.max(laneWidth + 28, width * .47);
+
+        for (const lane of lanes) {
+          const opacity = lane.depth === 0 ? 1 : (lane.depth === 1 ? p1 : p1 * p2);
+          const center = width / 2 + (lane.depth - state.camera) * step;
+          lane.left = center - laneWidth / 2;
+          lane.width = laneWidth;
+          lane.visualOpacity = opacity;
+          lane.active = lane.items.length > 0 && opacity > .035 && isLaneLogicallyValid(lane);
+          lane.shell.style.width = `${laneWidth.toFixed(2)}px`;
+          lane.shell.style.opacity = opacity.toFixed(3);
+          lane.shell.style.transform = `translate3d(${lane.left.toFixed(2)}px, 0, 0)`;
+          lane.shell.classList.toggle('active', lane.active);
+          const childProgress = lane.depth < 2 ? lanes[lane.depth + 1].openProgress : 0;
+          lane.shell.classList.toggle('receding', childProgress > .3);
+        }
+      }
+
+      function updateRelations() {
+        const stageRect = stage.getBoundingClientRect();
+        for (let depth = 1; depth <= 2; depth += 1) {
+          const child = lanes[depth];
+          const parent = lanes[depth - 1];
+          const thread = threads[depth];
+          const entry = relationEntry(depth);
+          const sourceIndex = entry ? parent.items.findIndex((item) => item.id === entry.sourceId) : -1;
+          const sourceItem = sourceIndex >= 0 ? parent.items[sourceIndex] : null;
+          const source = sourceIndex >= 0 ? parent.nodes[sourceIndex] : null;
+          const targetIndex = clamp(Math.round(child.focus), 0, Math.max(0, child.nodes.length - 1));
+          const target = child.nodes[targetIndex];
+          const progress = child.openProgress;
+          if (!entry || !isLaneLogicallyValid(child) || !source || !target || progress < .035 || sourceItem?.evidence === 'proximity') {
+            thread.style.opacity = '0';
+            thread.setAttribute('d', '');
+            continue;
+          }
+          const a = source.getBoundingClientRect();
+          const b = target.getBoundingClientRect();
+          const x1 = a.right - stageRect.left + 7;
+          const y1 = a.top - stageRect.top + a.height / 2;
+          const x2 = b.left - stageRect.left - 7;
+          const y2 = b.top - stageRect.top + b.height / 2;
+          const bend = Math.max(28, Math.abs(x2 - x1) * .42);
+          thread.setAttribute('d', `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${(x1 + bend).toFixed(1)} ${y1.toFixed(1)}, ${(x2 - bend).toFixed(1)} ${y2.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`);
+          thread.style.opacity = String(clamp(progress * .72, 0, .72));
+        }
+      }
+
+      function syncClasses() {
+        const intentId = state.pointer.intentMaterialId;
+        for (const lane of lanes) {
+          lane.nodes.forEach((node, index) => {
+            const item = lane.items[index];
+            const logical = isLaneLogicallyValid(lane);
+            const initialAddressable = logical && !state.inspectOwner && item.id === intentId && state.pointer.intentDepth === lane.depth;
+            const ownerAddressable = logical && state.inspectOwner === item.id && state.inspectOwnerDepth === lane.depth && item.id === intentId;
+            const handoffAddressable = logical && state.handoffCandidate === item.id && state.handoffCandidateDepth === lane.depth && item.id === intentId;
+            node.classList.toggle('approached', state.pointer.inside && (initialAddressable || ownerAddressable || handoffAddressable));
+            node.classList.toggle('candidate', logical && ((state.handoffCandidate === item.id && state.handoffCandidateDepth === lane.depth) || (!state.inspectOwner && index === lane.candidateIndex)));
+            node.classList.toggle('inspected', logical && item.id === state.inspectOwner && state.inspectOwnerDepth === lane.depth && index === lane.lockedIndex);
+            const childEntry = relationEntry(lane.depth + 1);
+            node.classList.toggle('relation-source', logical && childEntry?.sourceId === item.id && lanes[lane.depth + 1]?.openProgress > .03);
+          });
+        }
+      }
+
+      function updateDebug() {
+        const activeLane = lanes[state.activeDepth] || lanes[0];
+        const activeIndex = activeLane.items.length ? clamp(Math.round(activeLane.focus), 0, activeLane.items.length - 1) : -1;
+        const active = activeIndex >= 0 ? activeLane.items[activeIndex] : null;
+        state.activeMaterial = state.inspectOwner || (active && active.id) || null;
+        const cameraMode = state.camera < .08 ? 'rest' : (Math.abs(state.camera - state.cameraTarget) > .025 ? 'moving' : 'settled');
+        const physics = state.yPhysics;
+        const physicsLane = lanes.find((lane) => lane.laneKey && lane.laneKey === physics.laneKey) || activeLane;
+        physics.currentSemanticMaterial = physicsLane?.items[physicsLane.semanticIndex]?.id || null;
+        const owner = state.inspectOwner ? findMaterial(state.inspectOwner, state.inspectOwnerDepth) : null;
+        const releaseStartedAt = owner ? owner.lane.releaseStartedAt : 0;
+        const pathLabel = state.relationPath.map((entry) => entry.depth === 0 ? entry.laneKey : `${entry.sourceId}→${entry.laneKey}`).join(' / ');
+        const laneBinding = (lane) => {
+          const source = lane.depth === 0 ? 'root' : (lane.boundSourceId || '—');
+          return `${source} · ${lane.laneKey || '—'} · ${lane.logicalOpen ? 'open' : 'closed'} · ${lane.openProgress.toFixed(2)}`;
+        };
+        const gesture = state.xGesture;
+        const closingLabel = state.closingTransitions.length
+          ? state.closingTransitions.map((transition) => `d${transition.depth}:${transition.reason}#${transition.token}@${transition.progress.toFixed(2)}`).join(' · ')
+          : '—';
+        const values = {
+          direction: state.direction.toUpperCase(),
+          fixture: state.fixture,
+          activeMaterial: state.activeMaterial || '—',
+          inspectOwner: state.inspectOwner || '—',
+          handoffCandidate: state.handoffCandidate || '—',
+          operatorOwner: state.operatorOwner || '—',
+          relationOwner: state.relationOwner || '—',
+          relationPath: pathLabel || '—',
+          activeDepth: String(state.activeDepth),
+          depth0: laneBinding(lanes[0]),
+          depth1: laneBinding(lanes[1]),
+          depth2: laneBinding(lanes[2]),
+          camera: `${cameraMode} · ${state.camera.toFixed(2)}`,
+          fieldCoordinate: physicsLane && Number.isFinite(physicsLane.fieldCoordinate) ? `${physicsLane.fieldCoordinate.toFixed(1)} px` : '—',
+          semanticFieldCoordinate: physicsLane && Number.isFinite(physicsLane.fieldCoordinate) ? `${physicsLane.fieldCoordinate.toFixed(1)} px` : '—',
+          visualFieldCoordinate: physicsLane && Number.isFinite(physicsLane.visualFieldCoordinate) ? `${physicsLane.visualFieldCoordinate.toFixed(1)} px` : '—',
+          visualLag: physicsLane && Number.isFinite(physicsLane.fieldCoordinate) && Number.isFinite(physicsLane.visualFieldCoordinate)
+            ? `${(physicsLane.fieldCoordinate - physicsLane.visualFieldCoordinate).toFixed(1)} px`
+            : '—',
+          fieldVelocity: `${physics.fieldVelocity.toFixed(1)} px/s`,
+          normalizedPointerSpeed: physics.normalizedPointerSpeed.toFixed(3),
+          rawNormalizedSpeed: physics.rawNormalizedSpeed.toFixed(3),
+          filteredNormalizedSpeed: physics.filteredNormalizedSpeed.toFixed(3),
+          presentationFollowMs: `${physics.presentationFollowMs.toFixed(1)} ms`,
+          directionalCommitment: physics.directionalCommitment.toFixed(3),
+          adaptiveGain: `${physics.adaptiveGain.toFixed(2)}×`,
+          rangeCompression: `${physics.rangeCompression.toFixed(2)}×`,
+          remainingPointerRunway: `${physics.remainingPointerRunway.toFixed(1)} px`,
+          currentSemanticMaterial: physics.currentSemanticMaterial || '—',
+          crossedBoundaryCount: String(physics.crossedBoundaryCountThisSample),
+          coalescingActive: String(physics.coalescingActive),
+          operatorTarget: state.operatorTarget || '—',
+          canonicalMutations: String(state.canonicalMutationCount),
+          traceEvents: String(state.traceExplorationEventCount),
+          pointerIntent: state.pointer.intentMaterialId || state.pointer.intentKind,
+          pointerDelta: `${state.pointer.dx.toFixed(1)} / ${state.pointer.dy.toFixed(1)}`,
+          pointerMeta: `${state.pointer.velocity.toFixed(1)} px/s / ${state.pointer.revision}`,
+          xAnchor: Number.isFinite(gesture.anchorX) ? `${gesture.anchorX.toFixed(1)} / ${gesture.anchorY.toFixed(1)}` : '—',
+          xDirection: `${gesture.direction} / ${gesture.consumed}`,
+          xDisplacement: `${gesture.displacementX.toFixed(1)} / ${gesture.displacementY.toFixed(1)}`,
+          closingTransitions: closingLabel,
+          pointerRetarget: String(state.pointerDrivenRetarget),
+          presentationMotion: String(state.presentationMotionActive),
+          yInputMode: state.yInputMode,
+          releaseStartedAt: releaseStartedAt ? releaseStartedAt.toFixed(1) : '0'
+        };
+        for (const [key, value] of Object.entries(values)) {
+          if (debugOutputs[key]) debugOutputs[key].textContent = value;
+        }
+      }
+
+      function snapshot() {
+        const gesture = state.xGesture;
+        const physics = state.yPhysics;
+        const owner = state.inspectOwner ? findMaterial(state.inspectOwner, state.inspectOwnerDepth) : null;
+        return {
+          direction: state.direction.toUpperCase(),
+          fixture: state.fixture,
+          fixtureCounts: Object.fromEntries(Object.entries(FIXTURES).map(([key, value]) => [key, value.roots.length])),
+          operators: [...OPERATORS],
+          activeMaterial: state.activeMaterial,
+          inspectOwner: state.inspectOwner,
+          inspectOwnerDepth: state.inspectOwnerDepth,
+          handoffCandidate: state.handoffCandidate,
+          handoffCandidateDepth: state.handoffCandidateDepth,
+          handoffCandidateRevision: state.handoffCandidateRevision,
+          handoffStartedAt: state.handoffStartedAt ? Number(state.handoffStartedAt.toFixed(2)) : 0,
+          operatorOwner: state.operatorOwner,
+          operatorOwnerDepth: state.operatorOwnerDepth,
+          pointerDrivenRetarget: state.pointerDrivenRetarget,
+          presentationMotionActive: state.presentationMotionActive,
+          yInputMode: state.yInputMode,
+          relationOwner: state.relationOwner,
+          relationPath: state.relationPath.map((entry) => ({ ...entry })),
+          pathVersion: state.pathVersion,
+          activeDepth: state.activeDepth,
+          camera: Number(state.camera.toFixed(3)),
+          exposure: lanes.map((lane) => Number(lane.focus.toFixed(3))),
+          targetExposure: lanes.map((lane) => Number(lane.targetFocus.toFixed(3))),
+          fieldCoordinates: lanes.map((lane) => Number.isFinite(lane.fieldCoordinate) ? Number(lane.fieldCoordinate.toFixed(3)) : null),
+          semanticFieldCoordinates: lanes.map((lane) => Number.isFinite(lane.fieldCoordinate) ? Number(lane.fieldCoordinate.toFixed(3)) : null),
+          visualFieldCoordinates: lanes.map((lane) => Number.isFinite(lane.visualFieldCoordinate) ? Number(lane.visualFieldCoordinate.toFixed(3)) : null),
+          fieldExtents: lanes.map((lane) => Number(maxFieldCoordinate(lane).toFixed(3))),
+          fieldVelocity: Number(physics.fieldVelocity.toFixed(3)),
+          normalizedPointerSpeed: Number(physics.normalizedPointerSpeed.toFixed(4)),
+          rawNormalizedSpeed: Number(physics.rawNormalizedSpeed.toFixed(4)),
+          filteredNormalizedSpeed: Number(physics.filteredNormalizedSpeed.toFixed(4)),
+          visualLag: Number(physics.visualLag.toFixed(3)),
+          presentationFollowMs: Number(physics.presentationFollowMs.toFixed(3)),
+          directionalCommitment: Number(physics.directionalCommitment.toFixed(4)),
+          adaptiveGain: Number(physics.adaptiveGain.toFixed(4)),
+          rangeCompression: Number(physics.rangeCompression.toFixed(4)),
+          remainingPointerRunway: Number(physics.remainingPointerRunway.toFixed(3)),
+          yInputLaneKey: physics.laneKey,
+          currentSemanticMaterial: physics.currentSemanticMaterial,
+          crossedBoundaryCountThisSample: physics.crossedBoundaryCountThisSample,
+          coalescingActive: physics.coalescingActive,
+          operatorTarget: state.operatorTarget,
+          canonicalMutationCount: state.canonicalMutationCount,
+          traceExplorationEventCount: state.traceExplorationEventCount,
+          pointerIntent: {
+            inside: state.pointer.inside,
+            materialId: state.pointer.intentMaterialId,
+            depth: state.pointer.intentDepth,
+            dx: Number(state.pointer.dx.toFixed(2)),
+            dy: Number(state.pointer.dy.toFixed(2)),
+            velocity: Number(state.pointer.velocity.toFixed(2)),
+            revision: state.pointer.revision
+          },
+          xGesture: {
+            anchorX: Number.isFinite(gesture.anchorX) ? Number(gesture.anchorX.toFixed(2)) : null,
+            anchorY: Number.isFinite(gesture.anchorY) ? Number(gesture.anchorY.toFixed(2)) : null,
+            direction: gesture.direction,
+            consumed: gesture.consumed,
+            displacementX: Number(gesture.displacementX.toFixed(2)),
+            displacementY: Number(gesture.displacementY.toFixed(2)),
+            originOwnerId: gesture.originOwnerId,
+            originOwnerDepth: gesture.originOwnerDepth
+          },
+          closingTransitions: state.closingTransitions.map((transition) => ({ ...transition })),
+          laneBindings: lanes.map((lane) => ({
+            depth: lane.depth,
+            boundSourceId: lane.boundSourceId,
+            laneKey: lane.laneKey,
+            logicalOpen: lane.logicalOpen,
+            visualOpenProgress: Number(lane.openProgress.toFixed(3)),
+            interactive: lane.active
+          })),
+          releaseStartedAt: owner ? Number(owner.lane.releaseStartedAt.toFixed(2)) : 0,
+          candidates: lanes.map((lane) => {
+            if (state.handoffCandidateDepth === lane.depth && state.handoffCandidate) return state.handoffCandidate;
+            return lane.candidateIndex >= 0 && lane.items[lane.candidateIndex] ? lane.items[lane.candidateIndex].id : null;
+          }),
+          persistentStates: currentFixture().roots.filter((item) => item.state).map((item) => ({ id: item.id, state: item.state })),
+          visibleLaneKeys: lanes.filter((lane) => lane.active).map((lane) => lane.laneKey)
+        };
+      }
+
+      directionButtons.forEach((button) => button.addEventListener('click', () => setDirection(button.dataset.direction)));
+      fixtureSelect.addEventListener('change', () => resetExperiment(fixtureSelect.value));
+      resetButton.addEventListener('click', () => resetExperiment(state.fixture));
+      debugButton.addEventListener('click', () => {
+        const visible = !debugPanel.classList.contains('visible');
+        debugPanel.classList.toggle('visible', visible);
+        debugPanel.setAttribute('aria-hidden', String(!visible));
+        debugButton.setAttribute('aria-pressed', String(visible));
+      });
+
+      stage.addEventListener('pointerenter', (event) => {
+        state.pointer.inside = true;
+        updatePointer(event);
+      });
+
+      stage.addEventListener('pointerleave', () => {
+        state.pointer.inside = false;
+        state.pointer.velocity = 0;
+        state.pointer.dx = 0;
+        state.pointer.dy = 0;
+        stopYSample();
+        state.yInputMode = 'idle';
+        state.pointer.intentMaterialId = null;
+        state.pointer.intentDepth = null;
+        state.pointer.intentKind = 'idle';
+        for (const lane of lanes) {
+          lane.candidateIndex = -1;
+          lane.candidateStartedAt = 0;
+        }
+        cancelHandoff();
+        resetXGesture(null, null);
+        syncClasses();
+      });
+
+      stage.addEventListener('pointermove', updatePointer);
+
+      stage.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('.operator-island')) return;
+        const onOwner = state.inspectOwner && event.target.closest(`[data-id="${CSS.escape(state.inspectOwner)}"]`);
+        if (!onOwner && event.target === stage) clearInspect();
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        if (state.inspectOwner) clearInspect();
+        else if (state.activeDepth > 0) closeDepth(state.activeDepth);
+      });
+
+      let lastFrame = performance.now();
+      function cleanupClosingVisual(lane, token) {
+        if (lane.logicalOpen || lane.transitionToken !== token || relationEntry(lane.depth)) return false;
+        clearLaneVisual(lane);
+        state.closingTransitions = state.closingTransitions.filter((transition) => transition.token !== token);
+        return true;
+      }
+
+      function settleConsumedGesture(now) {
+        const gesture = state.xGesture;
+        if (!gesture.consumed || !state.pointer.inside || !state.pointer.lastMoveAt) return;
+        if (now - state.pointer.lastMoveAt < SETTINGS.xPauseResetMs || state.presentationMotionActive) return;
+        const owner = state.inspectOwner ? findMaterial(state.inspectOwner, state.inspectOwnerDepth) : null;
+        const geometry = localGeometry(owner);
+        resetXGesture(state.pointer.x, state.pointer.y, owner && geometry.onOwnerMaterial ? owner : null);
+      }
+
+      function updateYRestState(now, dt) {
+        const physics = state.yPhysics;
+        if (!physics.lastInputAt || now - physics.lastInputAt <= SETTINGS.yMotionStopMs) return;
+        physics.fieldVelocity = 0;
+        physics.rawNormalizedSpeed = 0;
+        physics.filteredNormalizedSpeed = mix(
+          physics.filteredNormalizedSpeed,
+          0,
+          expEase(dt, SETTINGS.ySpeedFallMs)
+        );
+        if (physics.filteredNormalizedSpeed < .001) physics.filteredNormalizedSpeed = 0;
+        physics.normalizedPointerSpeed = physics.filteredNormalizedSpeed;
+        physics.directionalCommitment *= Math.exp(-dt / SETTINGS.yCommitmentDecayMs);
+        physics.adaptiveGain = mix(physics.adaptiveGain, SETTINGS.yBaseGain, expEase(dt, SETTINGS.yGainFallMs));
+        physics.rangeCompression = mix(physics.rangeCompression, 1, expEase(dt, SETTINGS.yCompressionFallMs));
+        physics.crossedBoundaryCountThisSample = 0;
+        physics.coalescingActive = false;
+        for (const lane of lanes) lane.fieldVelocity = 0;
+        if (physics.directionalCommitment < .002) {
+          physics.directionalCommitment = 0;
+          physics.direction = 0;
+          physics.sameDirectionDistance = 0;
+          physics.sameDirectionDuration = 0;
+        }
+        if (state.yInputMode.startsWith('field-')) state.yInputMode = 'idle';
+      }
+
+      function frame(now) {
+        const dt = clamp(now - lastFrame, 4, 34);
+        lastFrame = now;
+        state.pointer.velocity *= Math.exp(-dt / 105);
+        updateYRestState(now, dt);
+
+        for (let depth = 1; depth <= 2; depth += 1) {
+          const lane = lanes[depth];
+          lane.openProgress = mix(lane.openProgress, lane.openTarget, expEase(dt, SETTINGS.openTimeMs));
+          const transition = state.closingTransitions.find((candidate) => candidate.depth === depth && candidate.token === lane.transitionToken);
+          if (transition) transition.progress = lane.openProgress;
+          if (lane.openTarget === 0 && lane.openProgress < .02) {
+            lane.openProgress = 0;
+            if (transition) cleanupClosingVisual(lane, transition.token);
+          }
+        }
+
+        updateCamera(dt);
+        for (const lane of lanes) updateLaneMaterials(lane, dt, now);
+        updateHandoffCandidate(now);
+        state.presentationMotionActive = Math.abs(state.camera - state.cameraTarget) > .015
+          || lanes.some((lane) => Math.abs(lane.focus - lane.targetFocus) > .015)
+          || lanes.slice(1).some((lane) => Math.abs(lane.openProgress - lane.openTarget) > .015)
+          || lanes.some((lane) => lane.itemOffsets.some((offset, index) => {
+            const target = lane.lockedIndex >= 0 && index > lane.lockedIndex ? SETTINGS.operatorReserve : 0;
+            return Math.abs(offset - target) > .5;
+          }));
+        settleConsumedGesture(now);
+        updateRelations();
+        syncClasses();
+        if (state.toastUntil && now > state.toastUntil) {
+          state.toastUntil = 0;
+          actionToast.classList.remove('visible');
+        }
+        updateDebug();
+        requestAnimationFrame(frame);
+      }
+
+      function settlePresentationForTest(now = performance.now()) {
+        for (const lane of lanes) {
+          lane.openProgress = lane.openTarget;
+        }
+        updateCamera(1000);
+        state.camera = state.cameraTarget;
+        updateCamera(16);
+        for (const lane of lanes) updateLaneMaterials(lane, 1000, now);
+        updateRelations();
+        syncClasses();
+      }
+
+      function focusMaterialForTest(id, depth = null) {
+        const found = findMaterial(id, depth);
+        if (!found) return null;
+        updateMetrics(found.lane);
+        found.lane.fieldCoordinate = found.lane.metrics[found.index].center;
+        found.lane.visualFieldCoordinate = found.lane.fieldCoordinate;
+        found.lane.pendingInitialIndex = found.index;
+        syncLaneCoordinate(found.lane);
+        settlePresentationForTest();
+        return found;
+      }
+
+      function materialPointForTest(found) {
+        const stageRect = stage.getBoundingClientRect();
+        const nodeRect = found.node.getBoundingClientRect();
+        return {
+          x: nodeRect.left - stageRect.left + nodeRect.width / 2,
+          y: nodeRect.top - stageRect.top + nodeRect.height / 2
+        };
+      }
+
+      function runDeterministicTests() {
+        const originalFixture = state.fixture;
+        const originalDirection = state.direction;
+        const results = [];
+        const record = (name, pass, detail) => results.push({ name, pass: Boolean(pass), detail });
+        const geometryOwner = { onOwnerMaterial: true, inOperatorBridge: false, inOperatorPalette: false };
+        const geometryField = { onOwnerMaterial: false, inOperatorBridge: false, inOperatorPalette: false };
+
+        try {
+          let now = performance.now() + 100;
+
+          // A + B: a sibling candidate and continuous Y consume the same physical sample.
+          resetExperiment('dense');
+          const five = focusMaterialForTest('d-05', 0);
+          const six = findMaterial('d-06', 0);
+          const p5 = materialPointForTest(five);
+          const p6 = materialPointForTest(six);
+          inspectMaterial(five.lane, five.index, p5);
+          processPointerSample({ x: p5.x, y: p5.y, now, intentMaterialId: 'd-05', intentDepth: 0, intentKind: 'material', geometryOverride: geometryOwner });
+          const focusBefore = lanes[0].targetFocus;
+          now += 16;
+          processPointerSample({ x: p6.x, y: p6.y, now, intentMaterialId: 'd-06', intentDepth: 0, intentKind: 'material', geometryOverride: geometryField });
+          record('A — Y through materials', lanes[0].targetFocus !== focusBefore && state.handoffCandidate === 'd-06', `focus ${focusBefore.toFixed(3)}→${lanes[0].targetFocus.toFixed(3)}; candidate ${state.handoffCandidate}`);
+
+          state.pointer.velocity = 0;
+          state.handoffStartedAt = now + 1;
+          updateHandoffCandidate(now + SETTINGS.dwellMs + 2);
+          record('B — pause handoff', state.inspectOwner === 'd-06' && state.inspectOwnerDepth === 0, `inspect ${state.inspectOwner}@${state.inspectOwnerDepth}`);
+
+          // C: right intent is measured from an owner-relative anchor.
+          resetExperiment('dense');
+          const relationSource = focusMaterialForTest('d-10', 0);
+          const sourcePoint = materialPointForTest(relationSource);
+          inspectMaterial(relationSource.lane, relationSource.index, sourcePoint);
+          now += 100;
+          processPointerSample({ x: sourcePoint.x, y: sourcePoint.y, now, intentMaterialId: 'd-10', intentDepth: 0, intentKind: 'material', geometryOverride: geometryOwner });
+          now += 16;
+          processPointerSample({ x: sourcePoint.x + SETTINGS.xOpenThreshold + 10, y: sourcePoint.y + 2, now, intentMaterialId: 'd-10', intentDepth: 0, intentKind: 'material', geometryOverride: geometryField });
+          record('C — right from owner', state.activeDepth === 1 && relationEntry(1)?.sourceId === 'd-10', `path ${state.relationPath.map((entry) => entry.sourceId || 'root').join('→')}`);
+
+          // D + E: one consumed left gesture cannot cascade; reversal creates a new gesture.
+          const secondSource = findMaterial('d-10-2', 1);
+          openRelationFrom(secondSource.lane, secondSource.index, now + 1);
+          settlePresentationForTest(now + 2);
+          resetXGesture(500, 300);
+          state.pointer.lastTime = 0;
+          now += 100;
+          processPointerSample({ x: 500, y: 300, now, intentKind: 'field', geometryOverride: geometryField });
+          now += 16;
+          processPointerSample({ x: 500 - SETTINGS.xOpenThreshold - 8, y: 302, now, intentKind: 'field', geometryOverride: geometryField });
+          const afterOneLeft = state.activeDepth;
+          now += 16;
+          processPointerSample({ x: 350, y: 302, now, intentKind: 'field', geometryOverride: geometryField });
+          record('D — exactly one-level return', afterOneLeft === 1 && state.activeDepth === 1 && state.xGesture.consumed, `depth ${afterOneLeft} then ${state.activeDepth}`);
+
+          now += 16;
+          processPointerSample({ x: 480, y: 302, now, intentKind: 'field', geometryOverride: geometryField });
+          now += 16;
+          processPointerSample({ x: 480 - SETTINGS.xOpenThreshold - 8, y: 303, now, intentKind: 'field', geometryOverride: geometryField });
+          record('E — second return', state.activeDepth === 0 && state.relationPath.length === 1, `depth ${state.activeDepth}`);
+
+          // F: inspecting a new shallower source invalidates its old descendants now.
+          resetExperiment('dense');
+          openRelationFrom(findMaterial('d-10', 0).lane, findMaterial('d-10', 0).index, now += 50);
+          openRelationFrom(findMaterial('d-10-2', 1).lane, findMaterial('d-10-2', 1).index, now += 1);
+          const replacement = findMaterial('d-11', 0);
+          inspectMaterial(replacement.lane, replacement.index, { x: 300, y: 300 });
+          record('F — source replacement', state.relationPath.length === 1 && !lanes[1].logicalOpen && !lanes[2].logicalOpen, `path length ${state.relationPath.length}; children ${lanes[1].logicalOpen}/${lanes[2].logicalOpen}`);
+
+          // G: a stale visual token cannot mutate or clear a newer logical path.
+          resetExperiment('dense');
+          openRelationFrom(findMaterial('d-10', 0).lane, findMaterial('d-10', 0).index, now += 50);
+          openRelationFrom(findMaterial('d-10-2', 1).lane, findMaterial('d-10-2', 1).index, now += 1);
+          lanes[1].openProgress = 1;
+          lanes[2].openProgress = 1;
+          closeDepth(2, now += 1);
+          const staleToken = lanes[2].transitionToken;
+          const newSource = findMaterial('d-11', 0);
+          inspectMaterial(newSource.lane, newSource.index, { x: 300, y: 300 });
+          openRelationFrom(newSource.lane, newSource.index, now += 1);
+          const cleanupApplied = cleanupClosingVisual(lanes[2], staleToken);
+          record('G — stale animation', !cleanupApplied && state.activeDepth === 1 && relationEntry(1)?.sourceId === 'd-11', `stale cleanup ${cleanupApplied}; source ${relationEntry(1)?.sourceId}`);
+
+          record('H — canonical safety', state.canonicalMutationCount === 0 && state.traceExplorationEventCount === 0, `canonical ${state.canonicalMutationCount}; trace ${state.traceExplorationEventCount}`);
+        } catch (error) {
+          record('Harness execution', false, error instanceof Error ? error.message : String(error));
+        }
+
+        resetExperiment(originalFixture);
+        setDirection(originalDirection);
+        return {
+          passed: results.every((result) => result.pass),
+          results,
+          canonicalMutationCount: state.canonicalMutationCount,
+          traceExplorationEventCount: state.traceExplorationEventCount
+        };
+      }
+
+      function runYPhysicsTests() {
+        const originalFixture = state.fixture;
+        const originalDirection = state.direction;
+        const results = [];
+        const record = (name, pass, detail) => results.push({ name, pass: Boolean(pass), detail });
+
+        try {
+          let now = performance.now() + 200;
+          resetExperiment('dense');
+          settlePresentationForTest(now);
+          record('Fixture — mixed 30+', lanes[0].items.length >= 30, `${lanes[0].items.length} materials`);
+
+          // A: slow samples retain low-gain direct control.
+          const precisionTarget = focusMaterialForTest('d-10', 0);
+          state.pointer.y = stage.clientHeight * .42;
+          const precisionStart = precisionTarget.lane.fieldCoordinate;
+          applyYExposure(2, precisionTarget.lane, now += 45, 45);
+          const precisionDelta = precisionTarget.lane.fieldCoordinate - precisionStart;
+          record(
+            'A — precision',
+            precisionDelta > 0 && precisionDelta < 3 && state.yPhysics.adaptiveGain < 1,
+            `ΔS ${precisionDelta.toFixed(2)} px; gain ${state.yPhysics.adaptiveGain.toFixed(2)}×`
+          );
+
+          // B: speed plus sustained direction expands semantic range smoothly.
+          resetExperiment('dense');
+          settlePresentationForTest(now += 50);
+          const travelLane = focusMaterialForTest('d-10', 0).lane;
+          state.pointer.y = stage.clientHeight * .2;
+          const travelStart = travelLane.fieldCoordinate;
+          let physicalTravel = 0;
+          for (let sample = 0; sample < 16; sample += 1) {
+            const dy = 26;
+            physicalTravel += dy;
+            state.pointer.y += dy;
+            applyYExposure(dy, travelLane, now += 16, 16);
+          }
+          const semanticTravel = travelLane.fieldCoordinate - travelStart;
+          const fastGain = state.yPhysics.adaptiveGain;
+          record(
+            'B — sustained travel',
+            semanticTravel > physicalTravel * 1.8 && fastGain > 2.2,
+            `${physicalTravel}px hand → ${semanticTravel.toFixed(1)}px field; gain ${fastGain.toFixed(2)}×`
+          );
+
+          // C + D: slow input recovers aim; no sample means no semantic continuation.
+          for (let sample = 0; sample < 3; sample += 1) {
+            state.pointer.y += 2;
+            applyYExposure(2, travelLane, now += 55, 55);
+          }
+          const recoveredGain = state.yPhysics.adaptiveGain;
+          record('C — approach recovery', recoveredGain < fastGain * .5 && recoveredGain < 1.1, `gain ${fastGain.toFixed(2)}×→${recoveredGain.toFixed(2)}×`);
+          const stopCoordinate = travelLane.fieldCoordinate;
+          updateYRestState(now + SETTINGS.yMotionStopMs + 100, 100);
+          record('D — zero inertia', state.yPhysics.fieldVelocity === 0 && travelLane.fieldCoordinate === stopCoordinate, `S ${stopCoordinate.toFixed(2)} px; velocity ${state.yPhysics.fieldVelocity}`);
+
+          // E: the first meaningful reverse sample starts from precision gain.
+          resetExperiment('dense');
+          settlePresentationForTest(now += 200);
+          const reverseLane = focusMaterialForTest('d-18', 0).lane;
+          state.pointer.y = stage.clientHeight * .28;
+          for (let sample = 0; sample < 10; sample += 1) {
+            state.pointer.y += 24;
+            applyYExposure(24, reverseLane, now += 16, 16);
+          }
+          const beforeReverse = reverseLane.fieldCoordinate;
+          state.pointer.y -= 14;
+          applyYExposure(-14, reverseLane, now += 16, 16);
+          const reverseDelta = reverseLane.fieldCoordinate - beforeReverse;
+          record(
+            'E — reverse reset',
+            reverseDelta < 0 && state.yPhysics.direction === -1 && state.yPhysics.directionalCommitment === 0 && state.yPhysics.rangeCompression === 1 && state.yPhysics.adaptiveGain === SETTINGS.yBaseGain,
+            `ΔS ${reverseDelta.toFixed(2)} px; commitment ${state.yPhysics.directionalCommitment.toFixed(2)}; gain ${state.yPhysics.adaptiveGain.toFixed(2)}×`
+          );
+
+          // F: one bounded gesture in each direction can cover the local projection.
+          resetExperiment('dense');
+          settlePresentationForTest(now += 200);
+          const rangeLane = focusMaterialForTest('d-18', 0).lane;
+          state.pointer.y = stage.clientHeight * .16;
+          for (let sample = 0; sample < 21; sample += 1) {
+            state.pointer.y += 25;
+            applyYExposure(25, rangeLane, now += 16, 16);
+          }
+          const reachedBottom = rangeLane.semanticIndex >= rangeLane.items.length - 3;
+          for (let sample = 0; sample < 21; sample += 1) {
+            state.pointer.y -= 25;
+            applyYExposure(-25, rangeLane, now += 16, 16);
+          }
+          const reachedTop = rangeLane.semanticIndex <= 2;
+          record('F — full local range', reachedBottom && reachedTop, `top index ${rangeLane.semanticIndex}; bottom reached ${reachedBottom}`);
+
+          // G: actual material geometry, not item count, defines distance.
+          updateMetrics(rangeLane);
+          const longIndex = rangeLane.items.findIndex((item) => item.id === 'd-32');
+          const shortIndex = rangeLane.items.findIndex((item) => item.id === 'd-30');
+          const longSpan = rangeLane.metrics[longIndex].center - rangeLane.metrics[longIndex - 1].center;
+          const shortSpan = rangeLane.metrics[shortIndex].center - rangeLane.metrics[shortIndex - 1].center;
+          record('G — mixed-height geometry', longSpan > shortSpan * 1.25, `long ${longSpan.toFixed(1)}px; short ${shortSpan.toFixed(1)}px`);
+
+          // H: a multi-boundary sample is represented once, with no queued playback.
+          resetExperiment('dense');
+          settlePresentationForTest(now += 200);
+          const coalesceLane = focusMaterialForTest('d-10', 0).lane;
+          state.pointer.y = stage.clientHeight * .25;
+          for (let sample = 0; sample < 9; sample += 1) {
+            state.pointer.y += 24;
+            applyYExposure(24, coalesceLane, now += 16, 16);
+          }
+          state.pointer.y += 54;
+          applyYExposure(54, coalesceLane, now += 16, 16);
+          record(
+            'H — boundary coalescing',
+            state.yPhysics.crossedBoundaryCountThisSample >= 2 && state.yPhysics.coalescingActive && state.closingTransitions.length === 0,
+            `${state.yPhysics.crossedBoundaryCountThisSample} boundaries; queued relation visuals ${state.closingTransitions.length}`
+          );
+
+          // I: after travel, a stationary real material still follows normal dwell inspection.
+          const inspectTarget = focusMaterialForTest('d-33', 0);
+          clearInspect();
+          const inspectPoint = materialPointForTest(inspectTarget);
+          state.pointer.x = inspectPoint.x;
+          state.pointer.y = inspectPoint.y;
+          state.pointer.inside = true;
+          state.pointer.intentMaterialId = inspectTarget.item.id;
+          state.pointer.intentDepth = 0;
+          state.pointer.intentKind = 'material';
+          state.pointer.velocity = 0;
+          updateLaneMaterials(inspectTarget.lane, 16, now += 20);
+          updateLaneMaterials(inspectTarget.lane, 16, now += SETTINGS.dwellMs + 1);
+          record('I — inspect after travel', state.inspectOwner === 'd-33' && state.inspectOwnerDepth === 0, `inspect ${state.inspectOwner}@${state.inspectOwnerDepth}`);
+
+          record('Canonical safety', state.canonicalMutationCount === 0 && state.traceExplorationEventCount === 0, `canonical ${state.canonicalMutationCount}; trace ${state.traceExplorationEventCount}`);
+        } catch (error) {
+          record('Y harness execution', false, error instanceof Error ? error.message : String(error));
+        }
+
+        resetExperiment(originalFixture);
+        setDirection(originalDirection);
+        return {
+          passed: results.every((result) => result.pass),
+          results,
+          canonicalMutationCount: state.canonicalMutationCount,
+          traceExplorationEventCount: state.traceExplorationEventCount
+        };
+      }
+
+      window.KNOWL_VISUAL_TEST = Object.freeze({
+        snapshot,
+        setDirection,
+        setFixture: (key) => { if (FIXTURES[key]) resetExperiment(key); },
+        inspectById: (id) => {
+          const found = findMaterial(id);
+          return found ? inspectMaterial(found.lane, found.index, { x: stage.clientWidth / 2, y: stage.clientHeight / 2 }) : false;
+        },
+        openRelation: (id) => {
+          const found = id ? findMaterial(id) : (state.inspectOwner ? findMaterial(state.inspectOwner, state.inspectOwnerDepth) : null);
+          return found ? openRelationFrom(found.lane, found.index) : false;
+        },
+        closeRelation: () => closeDepth(state.activeDepth),
+        simulatePointer: (sample) => processPointerSample({ now: performance.now(), intentKind: 'field', ...sample }),
+        runDeterministicTests,
+        runYPhysicsTests,
+        nudgePresentation: (id, offset = 72) => {
+          const found = findMaterial(id);
+          if (!found) return false;
+          found.lane.itemOffsets[found.index] = Number(offset) || 0;
+          return true;
+        },
+        settings: { ...SETTINGS }
+      });
+
+      const query = new URLSearchParams(window.location.search);
+      const initialFixture = FIXTURES[query.get('fixture')] ? query.get('fixture') : 'concept';
+      const initialDirection = ['a', 'b', 'c'].includes(query.get('direction')) ? query.get('direction') : 'a';
+      resetExperiment(initialFixture);
+      setDirection(initialDirection);
+      const queryPath = (query.get('path') || '').split(',').map((value) => value.trim()).filter(Boolean);
+      for (const id of queryPath) {
+        const found = findMaterial(id);
+        if (found && found.item.related && found.item.related.length) openRelationFrom(found.lane, found.index);
+      }
+      const queryInspect = query.get('inspect');
+      if (queryInspect) {
+        const found = findMaterial(queryInspect);
+        if (found) inspectMaterial(found.lane, found.index, { x: stage.clientWidth / 2, y: stage.clientHeight / 2 });
+      }
+      if (query.get('settle') === '1') {
+        for (let depth = 1; depth <= 2; depth += 1) lanes[depth].openProgress = lanes[depth].openTarget;
+        state.cameraTarget = .5 * lanes[1].openProgress + lanes[2].openProgress;
+        state.camera = state.cameraTarget;
+        updateCamera(16);
+        for (const lane of lanes) updateLaneMaterials(lane, 16, performance.now());
+        updateRelations();
+        syncClasses();
+        updateDebug();
+      }
+      if (query.get('debug') === '1') debugButton.click();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
